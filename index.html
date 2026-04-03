@@ -761,13 +761,6 @@
     .kesim-table tbody tr:last-child td { border-bottom: none; }
     .kesim-table tbody tr:hover td { background: rgba(79,124,255,0.04); }
 
-    .td-poz {
-      text-align: center;
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      width: 44px;
-    }
-
     .td-aciklama { min-width: 160px; }
 
     .td-adet {
@@ -1192,15 +1185,6 @@
         <!-- Dolap Girişleri (dinamik) -->
         <div id="dolapInputs"></div>
 
-        <div style="margin-top:10px;color:var(--text-muted);font-size:0.78rem;line-height:1.45;">
-          <div><strong style="color:var(--text);font-weight:700;">Kanat Notları</strong></div>
-          <div>2 Kanat: Kasayı 2'ye böl, 1cm düş, Kanat profil ölçüsü kes</div>
-          <div>3 Kanat: Kasayı 3e Böl Kes</div>
-          <div>4 Kanat: Kasayı 4e böl, 3mm ekle, kes</div>
-          <div>5 Kanat: Kasayı 5e böl, 8mm ekle, kes</div>
-          <div>6 Kanat: Kasayı 6ya böl, 1cm ekle, kes</div>
-        </div>
-
         <!-- Maliyet -->
         <div class="input-group">
           <label class="maliyet-baslik">Maliyet</label>
@@ -1238,6 +1222,19 @@
               </div>
               <input type="number" id="costYay" min="0" step="0.01" placeholder="Örn: 8.00"
                      style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:1.05rem;font-weight:650;padding:12px 14px;outline:none;" />
+            </div>
+          </div>
+          <div class="slider-row" style="gap:10px;margin-top:10px;">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:0.78rem;color:var(--text-muted);font-weight:600;">Cam</span>
+                <span style="font-size:0.78rem;color:var(--text-muted);">TL/m²</span>
+              </div>
+              <input type="number" id="costCamM2" min="0" step="0.01" placeholder="Örn: 850.00 (m² birim fiyat)"
+                     style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:1.05rem;font-weight:650;padding:12px 14px;outline:none;" />
+              <div style="margin-top:6px;color:var(--text-muted);font-size:0.72rem;line-height:1.4;">
+                Her kanat camı: (En−3,2)×(Boy−3,2) cm; toplam m² = adet × tek cam m²
+              </div>
             </div>
           </div>
           <div style="margin-top:8px;color:var(--text-muted);font-size:0.78rem;line-height:1.45;">
@@ -1398,7 +1395,7 @@
     } catch {
       return;
     }
-    const ids = ['costKasa', 'costKanat', 'costTeker', 'costYay'];
+    const ids = ['costKasa', 'costKanat', 'costTeker', 'costYay', 'costCamM2'];
     ids.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -1584,16 +1581,25 @@
     const cn = document.getElementById('costKanat');
     const ct = document.getElementById('costTeker');
     const cy = document.getElementById('costYay');
+    const cm = document.getElementById('costCamM2');
     const kasa = parseFloat(ck ? ck.value : '');
     const kanat = parseFloat(cn ? cn.value : '');
     const teker = parseFloat(ct ? ct.value : '');
     const yay = parseFloat(cy ? cy.value : '');
+    const camM2 = parseFloat(cm ? cm.value : '');
     return {
       kasaTL: isNaN(kasa) ? 0 : kasa,
       kanatTL: isNaN(kanat) ? 0 : kanat,
       tekerTL: isNaN(teker) ? 0 : teker,
       yayTL: isNaN(yay) ? 0 : yay,
+      camM2TL: isNaN(camM2) ? 0 : camM2,
     };
+  }
+
+  /** Toplam cam alanı (m²): kanat sayısı × tek cam cm² / 10000 */
+  function camToplamM2(camEn, camBoy, kanatN) {
+    if (!camEn || !camBoy || !kanatN) return 0;
+    return (camEn * camBoy * kanatN) / 10000;
   }
 
   function formatTL(v) {
@@ -1610,14 +1616,17 @@
     const tekerAdet = kanatN * 2;
     const yayAdet   = kanatN * 1;
 
-    const { kasaTL, kanatTL, tekerTL, yayTL } = getMaliyetler();
+    const { kasaTL, kanatTL, tekerTL, yayTL, camM2TL } = getMaliyetler();
     const kasaTutar = round(kasaKg * kasaTL);
     const kanatTutar = round(kanatKg * kanatTL);
     const tekerTutar = round(tekerAdet * tekerTL);
     const yayTutar   = round(yayAdet * yayTL);
-    const genel = round(kasaTutar + kanatTutar + tekerTutar + yayTutar);
+    const camM2Toplam = camToplamM2(camEn, camBoy, kanatN);
+    const camTutar = round(camM2Toplam * camM2TL);
+    const genel = round(kasaTutar + kanatTutar + tekerTutar + yayTutar + camTutar);
 
     const tarih = new Date().toLocaleDateString('tr-TR');
+    const camM2Str = camM2Toplam.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
     document.getElementById('fiyatMeta').innerHTML = `
       <span>📐 Dolap: <strong>${W} × ${H} cm</strong></span>
       <span>🚪 Kanat: <strong>${kanatN}</strong></span>
@@ -1688,6 +1697,35 @@
       <div class="kesim-divider"></div>
 
       <div class="kesim-section">
+        <div class="kesim-section-header" style="border-left-color:#4f9fff;">
+          <span class="kesim-section-name">Cam</span>
+          <span class="kesim-section-meta">${camM2Str} m² · ${kanatN} kanat · ${camEn}×${camBoy} cm/panel</span>
+        </div>
+        <div class="kesim-table-wrap">
+          <table class="kesim-table">
+            <thead>
+              <tr>
+                <th>Açıklama</th>
+                <th class="c">Alan (m²)</th>
+                <th class="c">Birim (TL/m²)</th>
+                <th class="c">Tutar</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-aciklama">Cam panelleri (kanat başına 1 adet)</td>
+                <td class="td-olcu">${camM2Str}</td>
+                <td class="td-olcu">${camM2TL ? camM2TL.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</td>
+                <td class="td-aci">${camM2TL ? formatTL(camTutar) : '—'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="kesim-divider"></div>
+
+      <div class="kesim-section">
         <div class="kesim-section-header" style="border-left-color:#f4b942;">
           <span class="kesim-section-name">Aksesuar</span>
           <span class="kesim-section-meta">${tekerAdet} teker · ${yayAdet} yay</span>
@@ -1728,7 +1766,7 @@
       <div class="kesim-section">
         <div class="kesim-section-header" style="border-left-color:#3dd68c;">
           <span class="kesim-section-name">Genel Toplam</span>
-          <span class="kesim-section-meta">${round(kasaCm + kanatCm)} cm · ${round(kasaKg + kanatKg)} kg · ${tekerAdet} teker · ${yayAdet} yay</span>
+          <span class="kesim-section-meta">${round(kasaCm + kanatCm)} cm · ${round(kasaKg + kanatKg)} kg · ${camM2Str} m² cam · ${tekerAdet} teker · ${yayAdet} yay</span>
         </div>
         <div class="kesim-table-wrap">
           <table class="kesim-table">
@@ -1751,10 +1789,11 @@
 
   function olusturFiyatListesiCoklu(liste) {
     const tarih = new Date().toLocaleDateString('tr-TR');
-    const { kasaTL, kanatTL, tekerTL, yayTL } = getMaliyetler();
+    const { kasaTL, kanatTL, tekerTL, yayTL, camM2TL } = getMaliyetler();
 
     let kasaCmAll = 0, kanatCmAll = 0, kasaKgAll = 0, kanatKgAll = 0;
     let tekerAdetAll = 0, yayAdetAll = 0;
+    let camM2All = 0;
     liste.forEach(d => {
       const kasaCm = round(d.altUst * 2 + d.dikeyKasa * 2);
       const kanatCm = round(d.kanatN * (2 * d.duzDikey + 2 * d.duzYatay));
@@ -1764,6 +1803,7 @@
       kanatKgAll += hesaplaAgirlik(kanatCm, 'kanat');
       tekerAdetAll += d.kanatN * 2;
       yayAdetAll += d.kanatN * 1;
+      camM2All += camToplamM2(d.camEn, d.camBoy, d.kanatN);
     });
     kasaCmAll = round(kasaCmAll); kanatCmAll = round(kanatCmAll);
     kasaKgAll = round(kasaKgAll); kanatKgAll = round(kanatKgAll);
@@ -1772,7 +1812,9 @@
     const kanatTutar = round(kanatKgAll * kanatTL);
     const tekerTutar = round(tekerAdetAll * tekerTL);
     const yayTutar = round(yayAdetAll * yayTL);
-    const genel = round(kasaTutar + kanatTutar + tekerTutar + yayTutar);
+    const camTutar = round(camM2All * camM2TL);
+    const genel = round(kasaTutar + kanatTutar + tekerTutar + yayTutar + camTutar);
+    const camM2Str = camM2All.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
 
     document.getElementById('fiyatMeta').innerHTML = `
       <span>📦 Dolap: <strong>${liste.length} adet</strong></span>
@@ -1808,6 +1850,19 @@
       </div>
       <div class="kesim-divider"></div>
       <div class="kesim-section">
+        <div class="kesim-section-header" style="border-left-color:#4f9fff;">
+          <span class="kesim-section-name">Cam</span>
+          <span class="kesim-section-meta">${camM2Str} m² toplam</span>
+        </div>
+        <div class="kesim-table-wrap">
+          <table class="kesim-table">
+            <thead><tr><th>Açıklama</th><th class="c">Alan (m²)</th><th class="c">Birim (TL/m²)</th><th class="c">Tutar</th></tr></thead>
+            <tbody><tr><td class="td-aciklama">Cam panelleri (tüm dolaplar)</td><td class="td-olcu">${camM2Str}</td><td class="td-olcu">${camM2TL ? camM2TL.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td><td class="td-aci">${camM2TL ? formatTL(camTutar) : '—'}</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="kesim-divider"></div>
+      <div class="kesim-section">
         <div class="kesim-section-header" style="border-left-color:#f4b942;">
           <span class="kesim-section-name">Aksesuar</span>
           <span class="kesim-section-meta">${tekerAdetAll} teker · ${yayAdetAll} yay</span>
@@ -1826,7 +1881,7 @@
       <div class="kesim-section">
         <div class="kesim-section-header" style="border-left-color:#3dd68c;">
           <span class="kesim-section-name">Genel Toplam</span>
-          <span class="kesim-section-meta">${round(kasaCmAll + kanatCmAll)} cm · ${round(kasaKgAll + kanatKgAll)} kg</span>
+          <span class="kesim-section-meta">${round(kasaCmAll + kanatCmAll)} cm · ${round(kasaKgAll + kanatKgAll)} kg · ${camM2Str} m² cam</span>
         </div>
         <div class="kesim-table-wrap">
           <table class="kesim-table"><tbody>
@@ -2573,7 +2628,7 @@
   }
 
   // Maliyet değişince kaydet (kullanıcıya göre) + fiyat listesini güncelle
-  ['costKasa', 'costKanat', 'costTeker', 'costYay'].forEach(id => {
+  ['costKasa', 'costKanat', 'costTeker', 'costYay', 'costCamM2'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('input', () => {
@@ -2782,25 +2837,46 @@
   // Parça Teknik Çizimleri kaldırıldı.
 
   // ── Profil Kesim Listesi ──────────────────────────────────────
+  /** Kapı numarasını metinden çıkarır; aynı ölçüdeki kanat satırları tek satırda toplanır */
+  function kesimAciklamaKapilariBirlestir(ac) {
+    return String(ac).replace(/\s*—\s*Kapı\s*\d+\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  }
+
+  function kanatKesimSatirlariniBirlestir(kapilar) {
+    const map = new Map();
+    for (const row of kapilar) {
+      const acBirlesik = kesimAciklamaKapilariBirlestir(row.ac);
+      const yk = row.yatay === null || row.yatay === undefined ? '' : String(row.yatay);
+      const dk = row.dikey === null || row.dikey === undefined ? '' : String(row.dikey);
+      const key = `${acBirlesik}|${yk}|${dk}|${row.aci}`;
+      if (map.has(key)) {
+        map.get(key).adet += row.adet;
+      } else {
+        map.set(key, { ac: acBirlesik, adet: row.adet, yatay: row.yatay, dikey: row.dikey, aci: row.aci });
+      }
+    }
+    return Array.from(map.values());
+  }
+
   function olusturKesimListesi(W, H, altUst, dikeyKasa, duzDikey, duzYatay, camEn, camBoy, kanatN) {
 
-    const kapilar = [];
-    let pozNo = 1;
+    const kapilarHam = [];
     for (let i = 1; i <= kanatN; i++) {
-      kapilar.push({ poz: pozNo++, ac: `Düz Kanat Dikey — Kapı ${i} (Sol Stile)`,   adet: 1, yatay: null,     dikey: duzDikey, aci: '45/45' });
-      kapilar.push({ poz: pozNo++, ac: `Kollu Kanat Dikey — Kapı ${i} (Sağ Stile)`, adet: 1, yatay: null,     dikey: duzDikey, aci: '45/45' });
-      kapilar.push({ poz: pozNo++, ac: `Düz Kanat Yatay — Kapı ${i} (Üst & Alt Ray)`, adet: 2, yatay: duzYatay, dikey: null,   aci: '45/45' });
+      kapilarHam.push({ ac: `Düz Kanat Dikey — Kapı ${i} (Sol Stile)`,   adet: 1, yatay: null,     dikey: duzDikey, aci: '45/45' });
+      kapilarHam.push({ ac: `Kollu Kanat Dikey — Kapı ${i} (Sağ Stile)`, adet: 1, yatay: null,     dikey: duzDikey, aci: '45/45' });
+      kapilarHam.push({ ac: `Düz Kanat Yatay — Kapı ${i} (Üst & Alt Ray)`, adet: 2, yatay: duzYatay, dikey: null,   aci: '45/45' });
     }
+    const kapilar = kanatKesimSatirlariniBirlestir(kapilarHam);
 
     const bolumler = [
       {
         baslik: 'Kasa Profilleri',
         renk: '#4f7cff',
         satirlar: [
-          { poz: 1, ac: 'Üst Kasa',       adet: 1, yatay: altUst,    dikey: null,      aci: '45/45' },
-          { poz: 2, ac: 'Alt Kasa',        adet: 1, yatay: altUst,    dikey: null,      aci: '45/45' },
-          { poz: 3, ac: 'Yan Kasa (Sol)',  adet: 1, yatay: null,      dikey: dikeyKasa, aci: '45/45' },
-          { poz: 4, ac: 'Yan Kasa (Sağ)', adet: 1, yatay: null,      dikey: dikeyKasa, aci: '45/45' },
+          { ac: 'Üst Kasa',       adet: 1, yatay: altUst,    dikey: null,      aci: '45/45' },
+          { ac: 'Alt Kasa',        adet: 1, yatay: altUst,    dikey: null,      aci: '45/45' },
+          { ac: 'Yan Kasa (Sol)',  adet: 1, yatay: null,      dikey: dikeyKasa, aci: '45/45' },
+          { ac: 'Yan Kasa (Sağ)', adet: 1, yatay: null,      dikey: dikeyKasa, aci: '45/45' },
         ],
       },
       {
@@ -2812,9 +2888,9 @@
         baslik: 'Cam & Aksesuar',
         renk: '#3dd68c',
         satirlar: [
-          { poz: 1, ac: 'Cam Panel', adet: kanatN, yatay: camEn, dikey: camBoy, aci: 'Düz' },
-          { poz: 2, ac: 'Teker (her kanat 2 adet)', adet: kanatN * 2, yatay: null, dikey: null, aci: 'Düz' },
-          { poz: 3, ac: 'Yay (her kanat 1 adet)',   adet: kanatN * 1, yatay: null, dikey: null, aci: 'Düz' },
+          { ac: 'Cam Panel', adet: kanatN, yatay: camEn, dikey: camBoy, aci: 'Düz' },
+          { ac: 'Teker (her kanat 2 adet)', adet: kanatN * 2, yatay: null, dikey: null, aci: 'Düz' },
+          { ac: 'Yay (her kanat 1 adet)',   adet: kanatN * 1, yatay: null, dikey: null, aci: 'Düz' },
         ],
       },
     ];
@@ -2853,7 +2929,6 @@
           <table class="kesim-table">
             <thead>
               <tr>
-                <th class="c">Poz</th>
                 <th>Açıklama</th>
                 <th class="c">Adet</th>
                 <th class="c">Yatay (cm)</th>
@@ -2864,7 +2939,6 @@
             <tbody>
               ${bolum.satirlar.map(s => `
                 <tr>
-                  <td class="td-poz">${s.poz}</td>
                   <td class="td-aciklama">${s.ac}</td>
                   <td class="td-adet">${s.adet}</td>
                   <td class="td-olcu ${!s.yatay ? 'bos' : ''}">${s.yatay !== null ? s.yatay : '—'}</td>
@@ -2875,7 +2949,7 @@
             </tbody>
             <tfoot>
               <tr>
-                <td colspan="2">Toplam</td>
+                <td>Toplam</td>
                 <td class="td-val">${topAdet} adet</td>
                 <td colspan="2" class="td-val">${round(topUzunluk)} cm</td>
                 <td></td>
@@ -2892,22 +2966,22 @@
   }
 
   function _bolumlerForDolap(d) {
-    const kapilar = [];
-    let pozNo = 1;
+    const kapilarHam = [];
     for (let i = 1; i <= d.kanatN; i++) {
-      kapilar.push({ poz: pozNo++, ac: `Düz Kanat Dikey — Kapı ${i} (Sol Stile)`,   adet: 1, yatay: null,     dikey: d.duzDikey, aci: '45/45' });
-      kapilar.push({ poz: pozNo++, ac: `Kollu Kanat Dikey — Kapı ${i} (Sağ Stile)`, adet: 1, yatay: null,     dikey: d.duzDikey, aci: '45/45' });
-      kapilar.push({ poz: pozNo++, ac: `Düz Kanat Yatay — Kapı ${i} (Üst & Alt Ray)`, adet: 2, yatay: d.duzYatay, dikey: null,   aci: '45/45' });
+      kapilarHam.push({ ac: `Düz Kanat Dikey — Kapı ${i} (Sol Stile)`,   adet: 1, yatay: null,     dikey: d.duzDikey, aci: '45/45' });
+      kapilarHam.push({ ac: `Kollu Kanat Dikey — Kapı ${i} (Sağ Stile)`, adet: 1, yatay: null,     dikey: d.duzDikey, aci: '45/45' });
+      kapilarHam.push({ ac: `Düz Kanat Yatay — Kapı ${i} (Üst & Alt Ray)`, adet: 2, yatay: d.duzYatay, dikey: null,   aci: '45/45' });
     }
+    const kapilar = kanatKesimSatirlariniBirlestir(kapilarHam);
     return [
       {
         baslik: 'Kasa Profilleri',
         renk: '#4f7cff',
         satirlar: [
-          { poz: 1, ac: 'Üst Kasa',       adet: 1, yatay: d.altUst,    dikey: null,       aci: '45/45' },
-          { poz: 2, ac: 'Alt Kasa',       adet: 1, yatay: d.altUst,    dikey: null,       aci: '45/45' },
-          { poz: 3, ac: 'Yan Kasa (Sol)', adet: 1, yatay: null,       dikey: d.dikeyKasa, aci: '45/45' },
-          { poz: 4, ac: 'Yan Kasa (Sağ)', adet: 1, yatay: null,       dikey: d.dikeyKasa, aci: '45/45' },
+          { ac: 'Üst Kasa',       adet: 1, yatay: d.altUst,    dikey: null,       aci: '45/45' },
+          { ac: 'Alt Kasa',       adet: 1, yatay: d.altUst,    dikey: null,       aci: '45/45' },
+          { ac: 'Yan Kasa (Sol)', adet: 1, yatay: null,       dikey: d.dikeyKasa, aci: '45/45' },
+          { ac: 'Yan Kasa (Sağ)', adet: 1, yatay: null,       dikey: d.dikeyKasa, aci: '45/45' },
         ],
       },
       { baslik: 'Kanat Profilleri', renk: '#f05c5c', satirlar: kapilar },
@@ -2915,9 +2989,9 @@
         baslik: 'Cam & Aksesuar',
         renk: '#3dd68c',
         satirlar: [
-          { poz: 1, ac: 'Cam Panel', adet: d.kanatN,     yatay: d.camEn, dikey: d.camBoy, aci: 'Düz' },
-          { poz: 2, ac: 'Teker (her kanat 2 adet)', adet: d.kanatN * 2, yatay: null,     dikey: null,   aci: 'Düz' },
-          { poz: 3, ac: 'Yay (her kanat 1 adet)',   adet: d.kanatN * 1, yatay: null,     dikey: null,   aci: 'Düz' },
+          { ac: 'Cam Panel', adet: d.kanatN,     yatay: d.camEn, dikey: d.camBoy, aci: 'Düz' },
+          { ac: 'Teker (her kanat 2 adet)', adet: d.kanatN * 2, yatay: null,     dikey: null,   aci: 'Düz' },
+          { ac: 'Yay (her kanat 1 adet)',   adet: d.kanatN * 1, yatay: null,     dikey: null,   aci: 'Düz' },
         ],
       },
     ];
@@ -2960,7 +3034,6 @@
             <table class="kesim-table">
               <thead>
                 <tr>
-                  <th class="c">Poz</th>
                   <th>Açıklama</th>
                   <th class="c">Adet</th>
                   <th class="c">Yatay (cm)</th>
@@ -2971,7 +3044,6 @@
               <tbody>
                 ${bolum.satirlar.map(s => `
                   <tr>
-                    <td class="td-poz">${s.poz}</td>
                     <td class="td-aciklama">${s.ac}</td>
                     <td class="td-adet">${s.adet}</td>
                     <td class="td-olcu ${!s.yatay ? 'bos' : ''}">${s.yatay !== null ? s.yatay : '—'}</td>
@@ -3249,7 +3321,6 @@
     tbody td { padding:7px 10px; border-bottom:1px solid #eee; color:#000; vertical-align:middle; }
     tbody tr:last-child td { border-bottom:none; }
     tfoot td { background:#f5f5f5; padding:7px 10px; font-size:.78rem; font-weight:700; color:#000; border-top:1.5px solid #ccc; }
-    .td-poz { text-align:center; color:#000; width:40px; font-size:.72rem; font-weight:700; }
     .td-adet { text-align:center; font-weight:800; width:50px; color:#000; }
     .td-olcu { text-align:center; font-family:'Courier New',monospace; font-weight:700; width:96px; color:#000; }
     .td-olcu.bos { color:#000; }
@@ -3291,7 +3362,6 @@
         tbody td { padding:7px 10px; border-bottom:1px solid #eee; color:#000; vertical-align:middle; }
         tbody tr:last-child td { border-bottom:none; }
         tfoot td { background:#f5f5f5; padding:7px 10px; font-size:.78rem; font-weight:700; color:#000; border-top:1.5px solid #ccc; }
-        .td-poz { text-align:center; color:#000; width:40px; font-size:.72rem; font-weight:700; }
         .td-adet { text-align:center; font-weight:800; width:50px; color:#000; }
         .td-olcu { text-align:center; font-family:'Courier New',monospace; font-weight:700; width:96px; color:#000; }
         .td-olcu.bos { color:#000; }
@@ -3376,19 +3446,19 @@
       const bolumler = _bolumlerForDolap(d);
       bolumler.forEach(b => {
         rows.push([b.baslik.toUpperCase()]);
-        rows.push(['Poz', 'Açıklama', 'Adet', 'Yatay (cm)', 'Dikey (cm)', 'K.Açısı']);
-        b.satirlar.forEach(s => rows.push([s.poz, s.ac, s.adet, s.yatay ?? '', s.dikey ?? '', s.aci]));
+        rows.push(['Açıklama', 'Adet', 'Yatay (cm)', 'Dikey (cm)', 'K.Açısı']);
+        b.satirlar.forEach(s => rows.push([s.ac, s.adet, s.yatay ?? '', s.dikey ?? '', s.aci]));
         const tot = b.satirlar.reduce((s, r) => s + r.adet, 0);
         const totLen = b.satirlar.reduce((s, r) => s + r.adet * ((+r.yatay) || (+r.dikey) || 0), 0);
-        rows.push(['', 'TOPLAM', tot, '', `${round(totLen)} cm`, '']);
+        rows.push(['TOPLAM', tot, '', `${round(totLen)} cm`, '']);
         rows.push([]);
       });
       rows.push([]);
     });
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{ wch: 6 }, { wch: 42 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 12 }];
-    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
+    ws['!cols'] = [{ wch: 42 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 12 }];
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Kesim Listesi');
