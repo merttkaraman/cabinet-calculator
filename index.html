@@ -1,0 +1,3348 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mutfak Dolabı Parça Hesaplayıcı</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3350;
+      --accent: #4f7cff;
+      --accent2: #7c5cfc;
+      --text: #e8eaf6;
+      --text-muted: #7b82b0;
+      --success: #3dd68c;
+      --warning: #f4b942;
+      --danger: #f05c5c;
+      --radius: 14px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body { max-width: 100%; overflow-x: hidden; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 60px;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    h1 {
+      font-size: clamp(1.4rem, 4vw, 2rem);
+      font-weight: 700;
+      background: linear-gradient(135deg, #fff 30%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-top: 6px;
+    }
+
+    /* ── Main layout ── */
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 18px 12px 48px; }
+      header { margin-bottom: 26px; }
+      .card { padding: 18px; }
+      .subtitle { font-size: 0.85rem; }
+      .summary-bar { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 380px) {
+      body { padding: 14px 10px 44px; }
+      .card { padding: 16px; }
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title::before {
+      content: '';
+      display: block;
+      width: 3px;
+      height: 14px;
+      background: linear-gradient(to bottom, var(--accent), var(--accent2));
+      border-radius: 2px;
+    }
+
+    /* ── Input group ── */
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 12px 52px 12px 16px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      -moz-appearance: textfield;
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.15);
+    }
+
+    input[type="number"].error {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 3px rgba(240, 92, 92, 0.15);
+    }
+
+    .unit-badge {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .error-msg {
+      font-size: 0.78rem;
+      color: var(--danger);
+      margin-top: 6px;
+      display: none;
+    }
+
+    /* ── Slider ── */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      border-radius: 4px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .range-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ── Calculate button ── */
+    .btn-calc {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      margin-top: 8px;
+      letter-spacing: 0.03em;
+      box-shadow: 0 4px 20px rgba(79, 124, 255, 0.3);
+    }
+
+    .btn-calc:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 26px rgba(79, 124, 255, 0.4);
+    }
+
+    .btn-calc:active {
+      transform: translateY(0);
+    }
+
+    .btn-calc:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ── Preset chips ── */
+    .presets {
+      margin-bottom: 20px;
+    }
+
+    .preset-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .chip.active {
+      background: rgba(79, 124, 255, 0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Result panel ── */
+    .result-panel {
+      display: none;
+    }
+
+    .result-panel.visible {
+      display: block;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .result-dims {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .result-dims strong {
+      color: var(--accent);
+    }
+
+    .btn-copy {
+      padding: 6px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-copy:hover {
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    .btn-copy.copied {
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    /* ── Material list ── */
+    .material-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .mat-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      transition: border-color 0.2s;
+      animation: fadeIn 0.3s ease both;
+    }
+    .mat-item > div { min-width: 0; }
+
+    .mat-icon {
+      width: 42px;
+      height: 42px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .mat-icon svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .btn-excel {
+      padding: 6px 14px;
+      border: 1.5px solid rgba(61, 214, 140, 0.4);
+      border-radius: 20px;
+      background: rgba(61, 214, 140, 0.1);
+      color: var(--success);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-excel:hover {
+      background: rgba(61, 214, 140, 0.2);
+      border-color: var(--success);
+    }
+
+    .mat-item:hover {
+      border-color: rgba(79, 124, 255, 0.4);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .mat-item:nth-child(1) { animation-delay: 0.05s; }
+    .mat-item:nth-child(2) { animation-delay: 0.10s; }
+    .mat-item:nth-child(3) { animation-delay: 0.15s; }
+    .mat-item:nth-child(4) { animation-delay: 0.20s; }
+    .mat-item:nth-child(5) { animation-delay: 0.25s; }
+    .mat-item:nth-child(6) { animation-delay: 0.30s; }
+    .mat-item:nth-child(7) { animation-delay: 0.35s; }
+
+    .mat-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .mat-cat {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .mat-meta {
+      text-align: right;
+    }
+
+    .mat-size {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    .mat-count {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(79, 124, 255, 0.15);
+      color: var(--accent);
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .mat-count.cam-count {
+      background: rgba(61, 214, 140, 0.15);
+      color: var(--success);
+    }
+
+    /* ── Visualization ── */
+    .viz-card {
+      margin-top: 24px;
+    }
+
+    /* ── Summary bar ── */
+    .summary-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .stat-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .stat-lbl {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state .big-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+
+    .empty-state p {
+      font-size: 0.88rem;
+    }
+
+    /* ── Viz 3D panel ── */
+    .viz-hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .canvas-wrap {
+      background: #080b12;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+
+    .canvas-wrap canvas {
+      max-width: 100%;
+      cursor: default;
+      display: block;
+    }
+
+    .part-info-panel {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--surface2);
+      border: 1.5px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-top: 16px;
+      animation: fadeIn 0.25s ease;
+      position: relative;
+    }
+
+    .part-info-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .part-info-cat {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .part-info-right {
+      margin-left: auto;
+      text-align: right;
+    }
+
+    .part-info-size {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .part-info-count {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .part-info-close {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.2s;
+      line-height: 1;
+    }
+
+    .part-info-close:hover { color: var(--text); }
+
+    /* ── Kesim Listesi ── */
+    .kesim-card { margin-top: 24px; }
+
+    .kesim-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .kesim-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      color: var(--text);
+      text-transform: uppercase;
+    }
+
+    .kesim-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 8px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .kesim-meta strong { color: var(--accent); }
+
+    .kesim-actions { display: flex; gap: 8px; align-items: center; }
+
+    @media (max-width: 520px) {
+      .result-header { flex-wrap: wrap; gap: 10px; }
+      .btn-copy, .btn-excel { width: 100%; justify-content: center; }
+
+      .kesim-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+      .btn-print, .btn-excel-k { width: 100%; justify-content: center; }
+      .kesim-section-header { flex-direction: column; align-items: flex-start; gap: 6px; }
+    }
+
+    .btn-print {
+      padding: 6px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-print:hover { border-color: var(--warning); color: var(--warning); }
+
+    .btn-excel-k {
+      padding: 6px 14px;
+      border: 1.5px solid rgba(61,214,140,0.4);
+      border-radius: 20px;
+      background: rgba(61,214,140,0.1);
+      color: var(--success);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-excel-k:hover { background: rgba(61,214,140,0.2); }
+
+    .kesim-section { margin-bottom: 28px; }
+
+    .kesim-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: rgba(79,124,255,0.07);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 10px;
+    }
+
+    .kesim-section-name {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .kesim-section-meta {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .kesim-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(46,51,80,0.55);
+      background: rgba(255,255,255,0.01);
+    }
+
+    .kesim-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      min-width: 560px;
+    }
+
+    .kesim-table thead th {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1.5px solid var(--border);
+      white-space: nowrap;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .kesim-table thead th.c { text-align: center; }
+
+    .kesim-table tbody td {
+      padding: 9px 12px;
+      border-bottom: 1px solid rgba(46,51,80,0.45);
+      color: var(--text);
+      vertical-align: middle;
+    }
+
+    .kesim-table tbody tr:last-child td { border-bottom: none; }
+    .kesim-table tbody tr:hover td { background: rgba(79,124,255,0.04); }
+
+    .td-poz {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      width: 44px;
+    }
+
+    .td-aciklama { min-width: 160px; }
+
+    .td-adet {
+      text-align: center;
+      font-weight: 700;
+      color: var(--success);
+      width: 56px;
+    }
+
+    .td-olcu {
+      text-align: center;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+      width: 100px;
+    }
+
+    .td-olcu.bos { color: var(--border); }
+
+    .td-aci {
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      width: 80px;
+    }
+    .aci-45  { color: var(--warning); }
+    .aci-90  { color: var(--success); }
+    .aci-duz { color: var(--text-muted); }
+
+    .kesim-table tfoot td {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: rgba(79,124,255,0.06);
+      border-top: 1px solid var(--border);
+      padding: 8px 12px;
+    }
+
+    .kesim-table tfoot .td-val {
+      color: var(--accent);
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .kesim-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+      opacity: 0.4;
+    }
+
+    /* ── Parça Çizimleri ── */
+    .cizim-card { margin-top: 24px; }
+
+    .cizim-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    @media (max-width: 860px) { .cizim-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .cizim-grid { grid-template-columns: 1fr; } }
+
+    .cizim-kart {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+    }
+
+    .cizim-kart:hover {
+      border-color: rgba(79,124,255,0.5);
+      box-shadow: 0 4px 20px rgba(79,124,255,0.12);
+      transform: translateY(-2px);
+    }
+
+    .cizim-kart svg { display: block; width: 100%; height: auto; }
+
+    /* ── Poz Görünümleri ── */
+    .poz-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 700px) { .poz-grid { grid-template-columns: 1fr; } }
+    .poz-kart {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .poz-kart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 14px;
+      background: rgba(79,124,255,0.07);
+      border-bottom: 1px solid var(--border);
+    }
+    .poz-kart-no {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+    }
+    .poz-kart-alt {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+    .poz-drawing {
+      background: #080b11;
+      padding: 6px 10px;
+      line-height: 0;
+    }
+    .poz-drawing svg { display: block; width: 100%; height: auto; }
+    .poz-parts {
+      padding: 12px 14px;
+      flex: 1;
+    }
+    .poz-parts-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .poz-parts-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(46,51,80,0.5);
+      font-size: 0.8rem;
+    }
+    .poz-parts-row:last-of-type { border-bottom: none; }
+    .poz-parts-name { color: var(--text); }
+    .poz-parts-val {
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      color: #4f9fff;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .poz-total {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .poz-total-val { color: var(--accent); font-family: 'Courier New', monospace; }
+
+    /* ── Yazdır ── */
+    @media print {
+      body { background: #fff !important; color: #000 !important; padding: 16px !important; }
+      header, .grid, #vizCard, footer,
+      .btn-print, .btn-excel-k, .kesim-actions,
+      .card:not(.kesim-card) { display: none !important; }
+      .kesim-card {
+        display: block !important;
+        background: #fff !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+      .kesim-title { color: #000 !important; font-size: 1rem; }
+      .kesim-meta { color: #555 !important; }
+      .kesim-section-header { background: #f2f2f2 !important; border-left: 3px solid #999 !important; }
+      .kesim-section-name { color: #000 !important; }
+      .kesim-table thead th { color: #555 !important; border-bottom: 1.5px solid #ccc !important; background: #f8f8f8 !important; }
+      .kesim-table tbody td { color: #000 !important; border-bottom: 1px solid #eee !important; }
+      .kesim-table tbody tr:hover td { background: none !important; }
+      .kesim-table tfoot td { background: #f5f5f5 !important; color: #333 !important; }
+      .td-olcu { color: #000 !important; font-weight: 700 !important; }
+      .td-adet { color: #000 !important; }
+      .aci-45, .aci-90, .aci-duz { color: #333 !important; }
+      .td-olcu.bos { color: #bbb !important; }
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      margin-top: 48px;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--success);
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 20px;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 999;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+    /* ── Login ── */
+    #loginOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .login-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 44px 40px 36px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+      animation: loginFadeIn .35s ease;
+    }
+    @keyframes loginFadeIn {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .login-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .login-logo-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .login-logo-text h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .login-logo-text p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .login-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .login-sub {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+    }
+    .login-field {
+      margin-bottom: 16px;
+    }
+    .login-field label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 7px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .login-field input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 11px 14px;
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .login-field input:focus {
+      border-color: var(--accent);
+    }
+    .login-field input.shake {
+      animation: loginShake .35s ease;
+      border-color: var(--danger);
+    }
+    @keyframes loginShake {
+      0%,100% { transform: translateX(0); }
+      25%      { transform: translateX(-6px); }
+      75%      { transform: translateX(6px); }
+    }
+    .login-error {
+      font-size: 0.78rem;
+      color: var(--danger);
+      margin-top: 10px;
+      min-height: 18px;
+      text-align: center;
+    }
+    .login-btn {
+      width: 100%;
+      margin-top: 20px;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity .2s, transform .15s;
+    }
+    .login-btn:hover  { opacity: .9; }
+    .login-btn:active { transform: scale(.98); }
+    #appWrapper { display: none; }
+
+  </style>
+</head>
+<body>
+
+<!-- ── Login Overlay ── -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">🪵</div>
+      <div class="login-logo-text">
+        <h2>Mutfak Dolabı Hesaplayıcı</h2>
+        <p>Profesyonel parça hesaplama sistemi</p>
+      </div>
+    </div>
+    <div class="login-title">Giriş Yap</div>
+    <p class="login-sub">Devam etmek için kimlik bilgilerinizi girin.</p>
+    <div class="login-field">
+      <label for="loginUser">Kullanıcı Adı</label>
+      <input id="loginUser" type="text" placeholder="Kullanıcı adınızı girin" autocomplete="username" />
+    </div>
+    <div class="login-field">
+      <label for="loginPass">Şifre</label>
+      <input id="loginPass" type="password" placeholder="Şifrenizi girin" autocomplete="current-password" />
+    </div>
+    <div class="login-error" id="loginError"></div>
+    <button class="login-btn" onclick="loginGiris()">Giriş Yap</button>
+  </div>
+</div>
+
+<!-- ── Ana Uygulama ── -->
+<div id="appWrapper">
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🪵</div>
+    <h1>Mutfak Dolabı Hesaplayıcı</h1>
+  </div>
+  <p class="subtitle">Dolap boyutlarını girin — gerekli parçaları anında hesaplayın</p>
+</header>
+
+<div class="container">
+  <div class="grid" style="grid-template-columns: 1fr;">
+
+    <!-- ── Sol: Giriş ── -->
+    <div>
+      <div class="card">
+        <div class="card-title">Dolap Boyutları</div>
+
+        <!-- Ön tanımlı boyutlar -->
+        <div class="presets">
+          <div class="preset-label">Hızlı ön tanım:</div>
+          <div class="chip-row" id="chipRow">
+            <div class="chip" data-w="111" data-h="68.5">111 × 68.5</div>
+            <div class="chip" data-w="90"  data-h="68.5">90 × 68.5</div>
+            <div class="chip" data-w="120" data-h="72">120 × 72</div>
+            <div class="chip" data-w="60"  data-h="60">60 × 60</div>
+          </div>
+        </div>
+
+        <!-- Dolap Sayısı -->
+        <div class="input-group">
+          <label for="cabinetCount">Dolap Sayısı</label>
+          <div class="input-wrapper">
+            <select id="cabinetCount" style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:1.05rem;font-weight:650;padding:12px 14px;outline:none;">
+              <option value="1" selected>1 Dolap</option>
+              <option value="2">2 Dolap</option>
+              <option value="3">3 Dolap</option>
+              <option value="4">4 Dolap</option>
+              <option value="5">5 Dolap</option>
+              <option value="6">6 Dolap</option>
+            </select>
+          </div>
+          <div style="margin-top:8px;color:var(--text-muted);font-size:0.78rem;line-height:1.45;">
+            Her dolap için En/Boy/Kanat ayrı girilir. Aşağıda dolap girişleri otomatik artar.
+          </div>
+        </div>
+
+        <!-- Dolap Girişleri (dinamik) -->
+        <div id="dolapInputs"></div>
+
+        <div style="margin-top:10px;color:var(--text-muted);font-size:0.78rem;line-height:1.45;">
+          <div><strong style="color:var(--text);font-weight:700;">Kanat Notları</strong></div>
+          <div>2 Kanat: Kasayı 2'ye böl, 1cm düş, Kanat profil ölçüsü kes</div>
+          <div>3 Kanat: Kasayı 3e Böl Kes</div>
+          <div>4 Kanat: Kasayı 4e böl, 3mm ekle, kes</div>
+          <div>5 Kanat: Kasayı 5e böl, 8mm ekle, kes</div>
+          <div>6 Kanat: Kasayı 6ya böl, 1cm ekle, kes</div>
+        </div>
+
+        <!-- Maliyet -->
+        <div class="input-group">
+          <label>Maliyet</label>
+          <div class="slider-row" style="gap:10px;">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:0.78rem;color:var(--text-muted);font-weight:600;">Kasa</span>
+                <span style="font-size:0.78rem;color:var(--text-muted);">TL/kg</span>
+              </div>
+              <input type="number" id="costKasa" min="0" step="0.01" placeholder="Örn: 120.50"
+                     style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:1.05rem;font-weight:650;padding:12px 14px;outline:none;" />
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:0.78rem;color:var(--text-muted);font-weight:600;">Kanat</span>
+                <span style="font-size:0.78rem;color:var(--text-muted);">TL/kg</span>
+              </div>
+              <input type="number" id="costKanat" min="0" step="0.01" placeholder="Örn: 135.00"
+                     style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:1.05rem;font-weight:650;padding:12px 14px;outline:none;" />
+            </div>
+          </div>
+          <div class="slider-row" style="gap:10px;margin-top:10px;">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:0.78rem;color:var(--text-muted);font-weight:600;">Teker</span>
+                <span style="font-size:0.78rem;color:var(--text-muted);">TL/adet</span>
+              </div>
+              <input type="number" id="costTeker" min="0" step="0.01" placeholder="Örn: 12.50"
+                     style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:1.05rem;font-weight:650;padding:12px 14px;outline:none;" />
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:0.78rem;color:var(--text-muted);font-weight:600;">Yay</span>
+                <span style="font-size:0.78rem;color:var(--text-muted);">TL/adet</span>
+              </div>
+              <input type="number" id="costYay" min="0" step="0.01" placeholder="Örn: 8.00"
+                     style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:1.05rem;font-weight:650;padding:12px 14px;outline:none;" />
+            </div>
+          </div>
+          <div style="margin-top:8px;color:var(--text-muted);font-size:0.78rem;line-height:1.45;">
+            100cm kasa: <strong style="color:var(--text);font-weight:800;">0.707 kg</strong> &nbsp;·&nbsp;
+            100cm kanat: <strong style="color:var(--text);font-weight:800;">0.480 kg</strong>
+          </div>
+          <div style="margin-top:6px;color:var(--text-muted);font-size:0.78rem;line-height:1.45;">
+            Her kanat: <strong style="color:var(--text);font-weight:800;">2 teker</strong> + <strong style="color:var(--text);font-weight:800;">1 yay</strong>
+          </div>
+        </div>
+
+        <button class="btn-calc" id="calcBtn" onclick="hesapla()">Parçaları Hesapla</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Görselleştirme ── -->
+  <div class="card viz-card" id="vizCard" style="display:none; margin-top:24px;">
+    <div class="card-title" style="justify-content:space-between;">
+      <span>Dolap 3D Görünümü</span>
+      <span class="viz-hint">Parçalara tıklayarak detay görün</span>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="cabinetCanvas" width="660" height="430"></canvas>
+    </div>
+    <div class="part-info-panel" id="partInfoPanel" style="display:none;">
+      <div class="mat-icon" id="partInfoIcon"></div>
+      <div>
+        <div class="part-info-name" id="partInfoName"></div>
+        <div class="part-info-cat"  id="partInfoCat"></div>
+      </div>
+      <div class="part-info-right">
+        <div class="part-info-size"  id="partInfoSize"></div>
+        <div class="part-info-count" id="partInfoCount"></div>
+      </div>
+      <button class="part-info-close" onclick="desecilenParca()">✕</button>
+    </div>
+  </div>
+
+  <!-- ── Parça Çizimleri ── -->
+  <!-- Poz Görünümleri -->
+  <div class="card" id="pozCard" style="display:none; margin-top:24px;">
+    <div class="card-title" style="justify-content:space-between;">
+      <span>Dolap Poz Görünümleri</span>
+      <span class="kesim-actions">
+        <button class="btn-print" onclick="pozYazdir()">🖨️ A4 Yazdır</button>
+        <button class="btn-print" onclick="pozPDF()">📄 PDF</button>
+      </span>
+    </div>
+    <div class="poz-grid" id="pozGrid"></div>
+  </div>
+
+  <!-- ── Profil Kesim Listesi ── -->
+  <div class="card kesim-card" id="kesimCard" style="display:none; margin-top:24px;">
+
+    <div class="kesim-header">
+      <div>
+        <div class="kesim-title">Profil Kesim Listesi</div>
+        <div class="kesim-meta" id="kesimMeta"></div>
+      </div>
+      <div class="kesim-actions">
+        <button class="btn-print" onclick="kesimYazdir()">🖨️ Yazdır</button>
+        <button class="btn-print" onclick="kesimPDF()">📄 PDF</button>
+        <button class="btn-excel-k" onclick="kesimExcelIndir()">📥 Excel</button>
+      </div>
+    </div>
+
+    <div id="kesimIcerik"></div>
+
+  </div>
+
+  <!-- ── Fiyat Listesi ── -->
+  <div class="card kesim-card" id="fiyatCard" style="display:none; margin-top:24px;">
+    <div class="kesim-header">
+      <div>
+        <div class="kesim-title">Fiyat Listesi</div>
+        <div class="kesim-meta" id="fiyatMeta"></div>
+      </div>
+      <div class="kesim-actions">
+        <button class="btn-print" onclick="fiyatYazdir()">🖨️ Yazdır</button>
+        <button class="btn-print" onclick="fiyatPDF()">📄 PDF</button>
+      </div>
+    </div>
+    <div id="fiyatIcerik"></div>
+  </div>
+
+  </div>
+
+  <footer>Tüm hesaplamalar standart dolap yapı toleranslarına göre otomatik ayarlanmaktadır.</footer>
+
+<div class="toast" id="toast">✅ Panoya kopyalandı!</div>
+
+<script>
+  // ── Login (demo) ─────────────────────────────────────────────
+  const _AUTH = { username: 'serkan', password: 'serkan2121' };
+
+  function loginGiris() {
+    const uEl = document.getElementById('loginUser');
+    const pEl = document.getElementById('loginPass');
+    const err = document.getElementById('loginError');
+    const u = (uEl.value || '').trim();
+    const p = pEl.value || '';
+
+    const ok = (u === _AUTH.username && p === _AUTH.password);
+    if (!ok) {
+      err.textContent = 'Kullanıcı adı veya şifre hatalı.';
+      uEl.classList.remove('shake'); pEl.classList.remove('shake');
+      void uEl.offsetWidth; // reflow for animation restart
+      uEl.classList.add('shake'); pEl.classList.add('shake');
+      return;
+    }
+
+    err.textContent = '';
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('appWrapper').style.display = 'block';
+    try { localStorage.setItem('cc_loggedIn', '1'); } catch {}
+    showToast('✅ Giriş başarılı');
+  }
+
+  function loginCikis() {
+    try { localStorage.removeItem('cc_loggedIn'); } catch {}
+    document.getElementById('appWrapper').style.display = 'none';
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginError').textContent = '';
+    document.getElementById('loginUser').focus();
+  }
+
+  function _loginInit() {
+    const overlay = document.getElementById('loginOverlay');
+    const app = document.getElementById('appWrapper');
+    const uEl = document.getElementById('loginUser');
+    const pEl = document.getElementById('loginPass');
+
+    const logged = (() => { try { return localStorage.getItem('cc_loggedIn') === '1'; } catch { return false; } })();
+    if (logged) {
+      overlay.style.display = 'none';
+      app.style.display = 'block';
+    } else {
+      overlay.style.display = 'flex';
+      app.style.display = 'none';
+      setTimeout(() => uEl.focus(), 0);
+    }
+
+    [uEl, pEl].forEach(el => el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loginGiris();
+    }));
+  }
+
+  // ── Parça görselleri (SVG ikonlar) ────────────────────────
+  const ICONS = {
+    altKasa: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="27" width="34" height="9" rx="2" fill="#4f7cff" fill-opacity="0.22" stroke="#4f7cff" stroke-width="1.6"/>
+      <line x1="9"  y1="29.5" x2="9"  y2="33.5" stroke="#4f7cff" stroke-width="1.1" stroke-opacity="0.55"/>
+      <line x1="16" y1="29.5" x2="16" y2="33.5" stroke="#4f7cff" stroke-width="1.1" stroke-opacity="0.55"/>
+      <line x1="23" y1="29.5" x2="23" y2="33.5" stroke="#4f7cff" stroke-width="1.1" stroke-opacity="0.55"/>
+      <line x1="30" y1="29.5" x2="30" y2="33.5" stroke="#4f7cff" stroke-width="1.1" stroke-opacity="0.55"/>
+      <rect x="3" y="5"  width="34" height="9" rx="2" fill="#4f7cff" fill-opacity="0.06" stroke="#4f7cff" stroke-width="1" stroke-dasharray="3 2"/>
+      <rect x="3" y="15" width="8"  height="11" rx="1.5" fill="#4f7cff" fill-opacity="0.06" stroke="#4f7cff" stroke-width="0.8" stroke-dasharray="3 2"/>
+      <rect x="29" y="15" width="8" height="11" rx="1.5" fill="#4f7cff" fill-opacity="0.06" stroke="#4f7cff" stroke-width="0.8" stroke-dasharray="3 2"/>
+    </svg>`,
+
+    ustKasa: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="4"  width="34" height="9" rx="2" fill="#7c5cfc" fill-opacity="0.22" stroke="#7c5cfc" stroke-width="1.6"/>
+      <line x1="9"  y1="6.5" x2="9"  y2="10.5" stroke="#7c5cfc" stroke-width="1.1" stroke-opacity="0.55"/>
+      <line x1="16" y1="6.5" x2="16" y2="10.5" stroke="#7c5cfc" stroke-width="1.1" stroke-opacity="0.55"/>
+      <line x1="23" y1="6.5" x2="23" y2="10.5" stroke="#7c5cfc" stroke-width="1.1" stroke-opacity="0.55"/>
+      <line x1="30" y1="6.5" x2="30" y2="10.5" stroke="#7c5cfc" stroke-width="1.1" stroke-opacity="0.55"/>
+      <rect x="3" y="27" width="34" height="9"  rx="2" fill="#7c5cfc" fill-opacity="0.06" stroke="#7c5cfc" stroke-width="1" stroke-dasharray="3 2"/>
+      <rect x="3" y="15" width="8"  height="11" rx="1.5" fill="#7c5cfc" fill-opacity="0.06" stroke="#7c5cfc" stroke-width="0.8" stroke-dasharray="3 2"/>
+      <rect x="29" y="15" width="8" height="11" rx="1.5" fill="#7c5cfc" fill-opacity="0.06" stroke="#7c5cfc" stroke-width="0.8" stroke-dasharray="3 2"/>
+    </svg>`,
+
+    dikeyKasa: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2"  y="2" width="9" height="36" rx="2" fill="#f4b942" fill-opacity="0.22" stroke="#f4b942" stroke-width="1.6"/>
+      <rect x="29" y="2" width="9" height="36" rx="2" fill="#f4b942" fill-opacity="0.22" stroke="#f4b942" stroke-width="1.6"/>
+      <line x1="4"  y1="11" x2="9"  y2="11" stroke="#f4b942" stroke-width="1" stroke-opacity="0.55"/>
+      <line x1="4"  y1="19" x2="9"  y2="19" stroke="#f4b942" stroke-width="1" stroke-opacity="0.55"/>
+      <line x1="4"  y1="27" x2="9"  y2="27" stroke="#f4b942" stroke-width="1" stroke-opacity="0.55"/>
+      <line x1="31" y1="11" x2="36" y2="11" stroke="#f4b942" stroke-width="1" stroke-opacity="0.55"/>
+      <line x1="31" y1="19" x2="36" y2="19" stroke="#f4b942" stroke-width="1" stroke-opacity="0.55"/>
+      <line x1="31" y1="27" x2="36" y2="27" stroke="#f4b942" stroke-width="1" stroke-opacity="0.55"/>
+    </svg>`,
+
+    duzDikey: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="2" width="10" height="36" rx="2" fill="#3dd68c" fill-opacity="0.22" stroke="#3dd68c" stroke-width="1.6"/>
+      <line x1="17" y1="9"  x2="23" y2="9"  stroke="#3dd68c" stroke-width="1" stroke-opacity="0.6"/>
+      <line x1="17" y1="15" x2="23" y2="15" stroke="#3dd68c" stroke-width="1" stroke-opacity="0.6"/>
+      <line x1="17" y1="21" x2="23" y2="21" stroke="#3dd68c" stroke-width="1" stroke-opacity="0.6"/>
+      <line x1="17" y1="27" x2="23" y2="27" stroke="#3dd68c" stroke-width="1" stroke-opacity="0.6"/>
+      <line x1="17" y1="33" x2="23" y2="33" stroke="#3dd68c" stroke-width="1" stroke-opacity="0.6"/>
+    </svg>`,
+
+    kolluDikey: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="2" width="10" height="36" rx="2" fill="#f05c5c" fill-opacity="0.22" stroke="#f05c5c" stroke-width="1.6"/>
+      <rect x="24" y="14" width="9" height="12" rx="2" fill="#f05c5c" fill-opacity="0.18" stroke="#f05c5c" stroke-width="1.3"/>
+      <circle cx="28.5" cy="20" r="2.5" fill="#f05c5c" fill-opacity="0.6"/>
+      <line x1="17" y1="9"  x2="23" y2="9"  stroke="#f05c5c" stroke-width="1" stroke-opacity="0.45"/>
+      <line x1="17" y1="31" x2="23" y2="31" stroke="#f05c5c" stroke-width="1" stroke-opacity="0.45"/>
+    </svg>`,
+
+    duzYatay: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="15" width="34" height="10" rx="2" fill="#4f7cff" fill-opacity="0.22" stroke="#4f7cff" stroke-width="1.6"/>
+      <line x1="9"  y1="17.5" x2="9"  y2="22.5" stroke="#4f7cff" stroke-width="1.1" stroke-opacity="0.55"/>
+      <line x1="16" y1="17.5" x2="16" y2="22.5" stroke="#4f7cff" stroke-width="1.1" stroke-opacity="0.55"/>
+      <line x1="23" y1="17.5" x2="23" y2="22.5" stroke="#4f7cff" stroke-width="1.1" stroke-opacity="0.55"/>
+      <line x1="30" y1="17.5" x2="30" y2="22.5" stroke="#4f7cff" stroke-width="1.1" stroke-opacity="0.55"/>
+      <line x1="3" y1="3" x2="3" y2="14" stroke="#4f7cff" stroke-width="1" stroke-opacity="0.3"/>
+      <line x1="37" y1="3" x2="37" y2="14" stroke="#4f7cff" stroke-width="1" stroke-opacity="0.3"/>
+      <line x1="3" y1="26" x2="3" y2="37" stroke="#4f7cff" stroke-width="1" stroke-opacity="0.3"/>
+      <line x1="37" y1="26" x2="37" y2="37" stroke="#4f7cff" stroke-width="1" stroke-opacity="0.3"/>
+    </svg>`,
+
+    cam: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="5" y="3" width="30" height="34" rx="2.5" fill="#4f7cff" fill-opacity="0.1" stroke="#4f7cff" stroke-width="1.6"/>
+      <rect x="5" y="3" width="30" height="34" rx="2.5" fill="url(#glassGrad)" fill-opacity="0.12"/>
+      <path d="M 10 8 L 22 20" stroke="white" stroke-width="2.5" stroke-opacity="0.18" stroke-linecap="round"/>
+      <path d="M 10 16 L 17 23" stroke="white" stroke-width="1.5" stroke-opacity="0.12" stroke-linecap="round"/>
+      <defs>
+        <linearGradient id="glassGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="white" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#4f7cff" stop-opacity="0.05"/>
+        </linearGradient>
+      </defs>
+    </svg>`,
+  };
+
+  // ── Formüller ──────────────────────────────────────────────
+  // Referans: En=111, Boy=68.5
+  // Alt/Üst kasa     = En  + 1.6
+  // Dikey Kasa       = Boy + 1.6
+  // Düz/Kollu Dikey  = Boy − 4.9
+  // Düz yatay        = (En / KanatSayısı) + (ayar)
+  // Cam en           = Düz yatay − 3.2
+  // Cam boy          = Düz Dikey − 3.2
+
+  function hesapla() {
+    const dolaplar = getDolaplar();
+    let anyValid = false;
+
+    dolaplar.forEach(d => {
+      const errEl = document.getElementById(`dolapErr_${d.id}`);
+      const wOk = d.W && d.W >= 30 && d.W <= 600;
+      const hOk = d.H && d.H >= 30 && d.H <= 250;
+      const ok = !!(wOk && hOk);
+      if (errEl) errEl.style.display = ok ? 'none' : 'block';
+      if (ok) anyValid = true;
+    });
+
+    if (!anyValid) return;
+
+    const hesaplanan = dolaplar
+      .filter(d => d.W && d.H && d.W >= 30 && d.W <= 600 && d.H >= 30 && d.H <= 250)
+      .map(d => {
+        const altUst    = round(d.W + 1.6);
+        const dikeyKasa = round(d.H + 1.6);
+        const duzDikey  = round(d.H - 4.9);
+        const duzYatay  = kanatYatayOlcusu(d.W, d.kanatN);
+        const camEn     = round(duzYatay - 3.2);
+        const camBoy    = round(duzDikey - 3.2);
+        return { ...d, altUst, dikeyKasa, duzDikey, duzYatay, camEn, camBoy };
+      });
+
+    gosterSonucCoklu(hesaplanan);
+  }
+
+  function round(val) {
+    return Math.round(val * 10) / 10;
+  }
+
+  function getKanatSayisi(dolapId) {
+    const el = document.getElementById(`doorCount_${dolapId || 1}`);
+    const n = parseInt(el ? el.value : '2', 10);
+    return [2, 3, 4, 5, 6].includes(n) ? n : 2;
+  }
+
+  function kanatYatayOlcusu(W, kanatN) {
+    const adj = { 2: -1.0, 3: 0.0, 4: 0.3, 5: 0.8, 6: 1.0 }[kanatN] ?? 0;
+    return round((W / kanatN) + adj);
+  }
+
+  function hesaplaAgirlik(cmToplam, tip) {
+    // 100cm kasa 0.707 kg, 100cm kanat 0.480 kg
+    const kgPerCm = (tip === 'kasa') ? (0.707 / 100) : (0.480 / 100);
+    return round(cmToplam * kgPerCm);
+  }
+
+  function getMaliyetler() {
+    const ck = document.getElementById('costKasa');
+    const cn = document.getElementById('costKanat');
+    const ct = document.getElementById('costTeker');
+    const cy = document.getElementById('costYay');
+    const kasa = parseFloat(ck ? ck.value : '');
+    const kanat = parseFloat(cn ? cn.value : '');
+    const teker = parseFloat(ct ? ct.value : '');
+    const yay = parseFloat(cy ? cy.value : '');
+    return {
+      kasaTL: isNaN(kasa) ? 0 : kasa,
+      kanatTL: isNaN(kanat) ? 0 : kanat,
+      tekerTL: isNaN(teker) ? 0 : teker,
+      yayTL: isNaN(yay) ? 0 : yay,
+    };
+  }
+
+  function formatTL(v) {
+    const n = Number(v) || 0;
+    return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
+  }
+
+  function olusturFiyatListesi(W, H, altUst, dikeyKasa, duzDikey, duzYatay, camEn, camBoy, kanatN) {
+    const kasaCm = round(altUst * 2 + dikeyKasa * 2);
+    const kanatCm = round(kanatN * (2 * duzDikey + 2 * duzYatay));
+    const kasaKg = hesaplaAgirlik(kasaCm, 'kasa');
+    const kanatKg = hesaplaAgirlik(kanatCm, 'kanat');
+
+    const tekerAdet = kanatN * 2;
+    const yayAdet   = kanatN * 1;
+
+    const { kasaTL, kanatTL, tekerTL, yayTL } = getMaliyetler();
+    const kasaTutar = round(kasaKg * kasaTL);
+    const kanatTutar = round(kanatKg * kanatTL);
+    const tekerTutar = round(tekerAdet * tekerTL);
+    const yayTutar   = round(yayAdet * yayTL);
+    const genel = round(kasaTutar + kanatTutar + tekerTutar + yayTutar);
+
+    const tarih = new Date().toLocaleDateString('tr-TR');
+    document.getElementById('fiyatMeta').innerHTML = `
+      <span>📐 Dolap: <strong>${W} × ${H} cm</strong></span>
+      <span>🚪 Kanat: <strong>${kanatN}</strong></span>
+      <span>📅 ${tarih}</span>
+    `;
+
+    document.getElementById('fiyatIcerik').innerHTML = `
+      <div class="kesim-section">
+        <div class="kesim-section-header" style="border-left-color:#4f7cff;">
+          <span class="kesim-section-name">Kasa</span>
+          <span class="kesim-section-meta">${kasaCm} cm · ${kasaKg} kg</span>
+        </div>
+        <div class="kesim-table-wrap">
+          <table class="kesim-table">
+            <thead>
+              <tr>
+                <th>Açıklama</th>
+                <th class="c">Toplam (cm)</th>
+                <th class="c">Ağırlık (kg)</th>
+                <th class="c">Birim (TL/kg)</th>
+                <th class="c">Tutar</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-aciklama">Kasa Profilleri</td>
+                <td class="td-olcu">${kasaCm}</td>
+                <td class="td-olcu">${kasaKg}</td>
+                <td class="td-olcu">${kasaTL ? kasaTL.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</td>
+                <td class="td-aci">${kasaTL ? formatTL(kasaTutar) : '—'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="kesim-divider"></div>
+
+      <div class="kesim-section">
+        <div class="kesim-section-header" style="border-left-color:#f05c5c;">
+          <span class="kesim-section-name">Kanat</span>
+          <span class="kesim-section-meta">${kanatCm} cm · ${kanatKg} kg</span>
+        </div>
+        <div class="kesim-table-wrap">
+          <table class="kesim-table">
+            <thead>
+              <tr>
+                <th>Açıklama</th>
+                <th class="c">Toplam (cm)</th>
+                <th class="c">Ağırlık (kg)</th>
+                <th class="c">Birim (TL/kg)</th>
+                <th class="c">Tutar</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-aciklama">Kanat Profilleri (Cam çevresi)</td>
+                <td class="td-olcu">${kanatCm}</td>
+                <td class="td-olcu">${kanatKg}</td>
+                <td class="td-olcu">${kanatTL ? kanatTL.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</td>
+                <td class="td-aci">${kanatTL ? formatTL(kanatTutar) : '—'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="kesim-divider"></div>
+
+      <div class="kesim-section">
+        <div class="kesim-section-header" style="border-left-color:#f4b942;">
+          <span class="kesim-section-name">Aksesuar</span>
+          <span class="kesim-section-meta">${tekerAdet} teker · ${yayAdet} yay</span>
+        </div>
+        <div class="kesim-table-wrap">
+          <table class="kesim-table">
+            <thead>
+              <tr>
+                <th>Açıklama</th>
+                <th class="c">Adet</th>
+                <th class="c">Birim (TL/adet)</th>
+                <th class="c">Tutar</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-aciklama">Teker (her kanat 2 adet)</td>
+                <td class="td-olcu">${tekerAdet}</td>
+                <td class="td-olcu">${tekerTL ? tekerTL.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</td>
+                <td class="td-aci">${tekerTL ? formatTL(tekerTutar) : '—'}</td>
+                <td></td>
+              </tr>
+              <tr>
+                <td class="td-aciklama">Yay (her kanat 1 adet)</td>
+                <td class="td-olcu">${yayAdet}</td>
+                <td class="td-olcu">${yayTL ? yayTL.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</td>
+                <td class="td-aci">${yayTL ? formatTL(yayTutar) : '—'}</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="kesim-divider"></div>
+
+      <div class="kesim-section">
+        <div class="kesim-section-header" style="border-left-color:#3dd68c;">
+          <span class="kesim-section-name">Genel Toplam</span>
+          <span class="kesim-section-meta">${round(kasaCm + kanatCm)} cm · ${round(kasaKg + kanatKg)} kg · ${tekerAdet} teker · ${yayAdet} yay</span>
+        </div>
+        <div class="kesim-table-wrap">
+          <table class="kesim-table">
+            <tbody>
+              <tr>
+                <td class="td-aciklama"><strong>Toplam</strong></td>
+                <td class="td-olcu"><strong>${formatTL(genel)}</strong></td>
+                <td class="td-olcu" colspan="3" style="text-align:right;color:var(--text-muted);font-family:inherit;">
+                  (Birim maliyet girilmeden tutar hesaplanmaz)
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('fiyatCard').style.display = 'block';
+  }
+
+  function olusturFiyatListesiCoklu(liste) {
+    const tarih = new Date().toLocaleDateString('tr-TR');
+    const { kasaTL, kanatTL, tekerTL, yayTL } = getMaliyetler();
+
+    let kasaCmAll = 0, kanatCmAll = 0, kasaKgAll = 0, kanatKgAll = 0;
+    let tekerAdetAll = 0, yayAdetAll = 0;
+    liste.forEach(d => {
+      const kasaCm = round(d.altUst * 2 + d.dikeyKasa * 2);
+      const kanatCm = round(d.kanatN * (2 * d.duzDikey + 2 * d.duzYatay));
+      kasaCmAll += kasaCm;
+      kanatCmAll += kanatCm;
+      kasaKgAll += hesaplaAgirlik(kasaCm, 'kasa');
+      kanatKgAll += hesaplaAgirlik(kanatCm, 'kanat');
+      tekerAdetAll += d.kanatN * 2;
+      yayAdetAll += d.kanatN * 1;
+    });
+    kasaCmAll = round(kasaCmAll); kanatCmAll = round(kanatCmAll);
+    kasaKgAll = round(kasaKgAll); kanatKgAll = round(kanatKgAll);
+
+    const kasaTutar = round(kasaKgAll * kasaTL);
+    const kanatTutar = round(kanatKgAll * kanatTL);
+    const tekerTutar = round(tekerAdetAll * tekerTL);
+    const yayTutar = round(yayAdetAll * yayTL);
+    const genel = round(kasaTutar + kanatTutar + tekerTutar + yayTutar);
+
+    document.getElementById('fiyatMeta').innerHTML = `
+      <span>📦 Dolap: <strong>${liste.length} adet</strong></span>
+      <span>📅 ${tarih}</span>
+      <span>🧾 Birleşik fiyat listesi</span>
+    `;
+
+    document.getElementById('fiyatIcerik').innerHTML = `
+      <div class="kesim-section">
+        <div class="kesim-section-header" style="border-left-color:#4f7cff;">
+          <span class="kesim-section-name">Kasa</span>
+          <span class="kesim-section-meta">${kasaCmAll} cm · ${kasaKgAll} kg</span>
+        </div>
+        <div class="kesim-table-wrap">
+          <table class="kesim-table">
+            <thead><tr><th>Açıklama</th><th class="c">Toplam (cm)</th><th class="c">Ağırlık (kg)</th><th class="c">Birim (TL/kg)</th><th class="c">Tutar</th></tr></thead>
+            <tbody><tr><td class="td-aciklama">Kasa Profilleri</td><td class="td-olcu">${kasaCmAll}</td><td class="td-olcu">${kasaKgAll}</td><td class="td-olcu">${kasaTL ? kasaTL.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td><td class="td-aci">${kasaTL ? formatTL(kasaTutar) : '—'}</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="kesim-divider"></div>
+      <div class="kesim-section">
+        <div class="kesim-section-header" style="border-left-color:#f05c5c;">
+          <span class="kesim-section-name">Kanat</span>
+          <span class="kesim-section-meta">${kanatCmAll} cm · ${kanatKgAll} kg</span>
+        </div>
+        <div class="kesim-table-wrap">
+          <table class="kesim-table">
+            <thead><tr><th>Açıklama</th><th class="c">Toplam (cm)</th><th class="c">Ağırlık (kg)</th><th class="c">Birim (TL/kg)</th><th class="c">Tutar</th></tr></thead>
+            <tbody><tr><td class="td-aciklama">Kanat Profilleri (Cam çevresi)</td><td class="td-olcu">${kanatCmAll}</td><td class="td-olcu">${kanatKgAll}</td><td class="td-olcu">${kanatTL ? kanatTL.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td><td class="td-aci">${kanatTL ? formatTL(kanatTutar) : '—'}</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="kesim-divider"></div>
+      <div class="kesim-section">
+        <div class="kesim-section-header" style="border-left-color:#f4b942;">
+          <span class="kesim-section-name">Aksesuar</span>
+          <span class="kesim-section-meta">${tekerAdetAll} teker · ${yayAdetAll} yay</span>
+        </div>
+        <div class="kesim-table-wrap">
+          <table class="kesim-table">
+            <thead><tr><th>Açıklama</th><th class="c">Adet</th><th class="c">Birim (TL/adet)</th><th class="c">Tutar</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="td-aciklama">Teker (her kanat 2 adet)</td><td class="td-olcu">${tekerAdetAll}</td><td class="td-olcu">${tekerTL ? tekerTL.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td><td class="td-aci">${tekerTL ? formatTL(tekerTutar) : '—'}</td><td></td></tr>
+              <tr><td class="td-aciklama">Yay (her kanat 1 adet)</td><td class="td-olcu">${yayAdetAll}</td><td class="td-olcu">${yayTL ? yayTL.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td><td class="td-aci">${yayTL ? formatTL(yayTutar) : '—'}</td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="kesim-divider"></div>
+      <div class="kesim-section">
+        <div class="kesim-section-header" style="border-left-color:#3dd68c;">
+          <span class="kesim-section-name">Genel Toplam</span>
+          <span class="kesim-section-meta">${round(kasaCmAll + kanatCmAll)} cm · ${round(kasaKgAll + kanatKgAll)} kg</span>
+        </div>
+        <div class="kesim-table-wrap">
+          <table class="kesim-table"><tbody>
+            <tr><td class="td-aciklama"><strong>Toplam</strong></td><td class="td-olcu"><strong>${formatTL(genel)}</strong></td>
+              <td class="td-olcu" colspan="3" style="text-align:right;color:var(--text-muted);font-family:inherit;">(Birim maliyet girilmeden tutar hesaplanmaz)</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('fiyatCard').style.display = 'block';
+  }
+
+  function fiyatCardIcerikYazdirPdfIcin() {
+    return document.getElementById('fiyatCard').innerHTML.replace(
+      /<button[^>]*onclick="fiyat(PDF|Yazdir)\(\)"[^>]*>[\s\S]*?<\/button>/gi,
+      ''
+    );
+  }
+
+  function fiyatBaskiCss() {
+    return `
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background:#fff; color:#000; padding: 18px; margin:0; }
+    .kesim-header { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom: 18px; flex-wrap:wrap; }
+    .kesim-title { font-size: 16px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color:#000; }
+    .kesim-meta { font-size: 12px; color:#222; display:flex; gap: 12px; flex-wrap:wrap; margin-top: 6px; }
+    .kesim-meta strong { color:#000; }
+    .kesim-actions:empty { display:none; }
+    .kesim-section { margin-bottom: 18px; }
+    .kesim-section-header {
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      padding: 8px 12px; border-left: 3px solid #4f7cff; background:#f6f7ff;
+    }
+    .kesim-section-name { font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; font-size: 12px; color:#000; }
+    .kesim-section-meta { font-size: 12px; color:#222; font-weight: 700; }
+    .kesim-divider { height: 1px; background:#ddd; margin: 14px 0; }
+    table { width:100%; border-collapse: collapse; font-size: 12px; color:#000; }
+    table.kesim-table th, table.kesim-table td { color:#000 !important; }
+    th, td { border-bottom: 1px solid #e6e6e6; padding: 8px 10px; vertical-align:middle; }
+    th {
+      text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; color:#000; font-weight:800;
+      text-align:left; background:#f8f8f8;
+    }
+    th.c, td.c { text-align:center; }
+    .td-aciklama { color:#000 !important; }
+    .td-olcu { color:#000 !important; font-family:'Courier New',monospace; font-weight:700; }
+    .td-aci { color:#000 !important; font-weight:800; }
+    .kesim-table-wrap { border: 1px solid #eee; border-radius: 10px; overflow:hidden; }
+    strong { color:#000 !important; }
+    `;
+  }
+
+  function fiyatYazdir() {
+    const liste = getDolaplar().filter(d => d.W && d.H);
+    if (liste.length === 0) return;
+    const icerik = fiyatCardIcerikYazdirPdfIcin();
+    yazdirHtmlGizli(`<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Fiyat Listesi — Yazdır</title>
+  <style>
+    @page { size: A4; margin: 10mm; }
+    ${fiyatBaskiCss()}
+    @media print { body { padding: 12px; } }
+  </style>
+</head>
+<body>
+  ${icerik}
+</body>
+</html>`);
+  }
+
+  async function fiyatPDF() {
+    const liste = getDolaplar().filter(d => d.W && d.H);
+    if (liste.length === 0) return;
+    const icerikTemiz = fiyatCardIcerikYazdirPdfIcin();
+    const wrap = document.createElement('div');
+    wrap.style.cssText =
+      'position:fixed;left:-20000px;top:0;width:794px;background:#fff;padding:18px;font-family:Segoe UI,system-ui,sans-serif;color:#000;';
+    wrap.innerHTML = `<style>${fiyatBaskiCss()}</style>${icerikTemiz}`;
+    document.body.appendChild(wrap);
+    try {
+      await pdfIndirFromElement(wrap, `fiyat-listesi-${liste.length}-dolap.pdf`, { marginMm: 8 });
+    } finally {
+      document.body.removeChild(wrap);
+    }
+  }
+
+  function gosterSonucCoklu(liste) {
+    if (!liste || liste.length === 0) return;
+
+    // 3D: seçili dolap (varsayılan ilk)
+    document.getElementById('vizCard').style.display = 'block';
+    const secili = liste[0];
+    cizDolap(secili.W, secili.H, secili.altUst, secili.dikeyKasa, secili.duzDikey, secili.duzYatay, secili.camEn, secili.camBoy, secili.kanatN);
+
+    // Poz: tüm dolaplar
+    olusturPozGoruntumleriCoklu(liste);
+
+    // Kesim: tüm dolaplar (birleşik)
+    olusturKesimListesiCoklu(liste);
+
+    // Fiyat: tüm dolaplar (birleşik)
+    olusturFiyatListesiCoklu(liste);
+  }
+
+  // ── 3D Görselleştirme ─────────────────────────────────────────
+  let _viz = { parts: [], selected: null, hovered: null, data: null, W: 0, H: 0 };
+
+  function cizDolap(W, H, altUst, dikeyKasa, duzDikey, duzYatay, camEn, camBoy, kanatN) {
+    // Eski event listener'ları temizlemek için canvas klonla
+    const old = document.getElementById('cabinetCanvas');
+    const canvas = old.cloneNode(true);
+    old.parentNode.replaceChild(canvas, old);
+    canvas.id = 'cabinetCanvas';
+
+    const CW = 660, CH = 430;
+    canvas.width = CW; canvas.height = CH;
+
+    // 3D derinlik ofseti (sağ-üst perspektif)
+    const DDX = 30, DDY = -16;
+
+    // Ölçekleme
+    const maxW = CW - 80 - DDX;
+    const maxH = CH - 75 - Math.abs(DDY);
+    const scale = Math.min(maxW / W, maxH / H) * 0.8;
+    const dW = W * scale;
+    const dH = H * scale;
+    const ox = 38 + (maxW - dW) / 2;
+    const oy = 28 + Math.abs(DDY) + (maxH - dH) / 2;
+
+    // Görsel panel kalınlıkları (asgari eşikler uygulanır)
+    const PANEL    = Math.max(16, dW * 0.052);
+    const DOOR_GAP = 5;
+
+    // İç alan
+    const iL = ox + PANEL, iR = ox + dW - PANEL;
+    const iT = oy + PANEL, iB = oy + dH - PANEL;
+    const iW = iR - iL,    iH = iB - iT;
+
+    // Kapılar (kanat sayısına göre)
+    const doorsN = Math.max(2, Math.min(6, parseInt(kanatN || 2, 10) || 2));
+    const dH2 = iH;
+    const totalGap = (doorsN - 1) * DOOR_GAP;
+    const doorW = (iW - totalGap) / doorsN;
+
+    // Stile & ray görsel genişliği (gerçek oran baz)
+    const stileW = Math.max(10, doorW * Math.min(0.12, (duzYatay > 0 ? (duzYatay - camEn) / (2 * duzYatay) : 0.06)));
+    const railH  = Math.max(10, dH2 * Math.min(0.12, (duzDikey > 0 ? (duzDikey - camBoy) / (2 * duzDikey) : 0.06)));
+
+    const doors = Array.from({ length: doorsN }, (_, idx) => {
+      const dx = iL + idx * (doorW + DOOR_GAP);
+      const dw = doorW;
+      const g  = { x: dx + stileW, y: iT + railH, w: dw - 2 * stileW, h: dH2 - 2 * railH };
+      return { dx, dw, g };
+    });
+
+    // Parça tanımları (tıklanabilir bölgeler dahil)
+    _viz.W = W; _viz.H = H;
+    _viz.data = { CW, CH, ox, oy, dW, dH, DDX, DDY, PANEL, DOOR_GAP,
+                  iL, iR, iT, iB, iW, iH, doorsN,
+                  doors, dH2, stileW, railH };
+
+    _viz.parts = [
+      {
+        id: 'ustKasa', label: 'Üst Kasa', cat: 'Yatay / Tavan',
+        size: `${altUst} cm`, count: '1 adet', color: [124, 92, 252],
+        icon: ICONS.ustKasa,
+        hit: [{ x: ox, y: oy, w: dW, h: PANEL }],
+      },
+      {
+        id: 'altKasa', label: 'Alt Kasa', cat: 'Yatay / Taban',
+        size: `${altUst} cm`, count: '1 adet', color: [79, 124, 255],
+        icon: ICONS.altKasa,
+        hit: [{ x: ox, y: oy + dH - PANEL, w: dW, h: PANEL }],
+      },
+      {
+        id: 'dikeyKasa', label: 'Dikey Kasa', cat: 'Dikey / Yan Panel',
+        size: `${dikeyKasa} cm`, count: '2 adet', color: [244, 185, 66],
+        icon: ICONS.dikeyKasa,
+        hit: [
+          { x: ox,              y: oy, w: PANEL, h: dH },
+          { x: ox + dW - PANEL, y: oy, w: PANEL, h: dH },
+        ],
+      },
+      {
+        id: 'duzDikey', label: 'Düz Kanat Dikey', cat: 'Dikey / İç Panel',
+        size: `${duzDikey} cm`, count: `${doorsN} adet`, color: [61, 214, 140],
+        icon: ICONS.duzDikey,
+        hit: doors.map(dd => ({ x: dd.dx, y: iT, w: stileW, h: dH2 })),
+      },
+      {
+        id: 'kolluDikey', label: 'Kollu Kanat Dikey', cat: 'Dikey / Kapı Kolu',
+        size: `${duzDikey} cm`, count: `${doorsN} adet`, color: [240, 92, 92],
+        icon: ICONS.kolluDikey,
+        hit: doors.map(dd => ({ x: dd.dx + dd.dw - stileW, y: iT, w: stileW, h: dH2 })),
+      },
+      {
+        id: 'duzYatay', label: 'Düz Kanat Yatay', cat: 'Yatay / Kapı Rayı',
+        size: `${duzYatay} cm`, count: `${doorsN * 2} adet`, color: [79, 160, 255],
+        icon: ICONS.duzYatay,
+        hit: doors.flatMap(dd => ([
+          { x: dd.dx + stileW, y: iT,               w: dd.dw - 2 * stileW, h: railH },
+          { x: dd.dx + stileW, y: iT + dH2 - railH, w: dd.dw - 2 * stileW, h: railH },
+        ])),
+      },
+      {
+        id: 'cam', label: 'Cam', cat: 'Cam / Kapak',
+        size: `${camEn} × ${camBoy} cm`, count: `${doorsN} adet`, color: [79, 124, 255],
+        icon: ICONS.cam, isCam: true,
+        hit: doors.map(dd => ({ x: dd.g.x, y: dd.g.y, w: dd.g.w, h: dd.g.h })),
+      },
+    ];
+
+    _viz.selected = null;
+    _viz.hovered  = null;
+
+    tekrarCiz(canvas);
+
+    // Mouse olayları
+    canvas.addEventListener('mousemove', e => {
+      const { mx, my } = canvasXY(canvas, e);
+      const hit = parcaBul(mx, my);
+      const newH = hit ? hit.id : null;
+      if (newH !== _viz.hovered) {
+        _viz.hovered = newH;
+        canvas.style.cursor = newH ? 'pointer' : 'default';
+        tekrarCiz(canvas);
+      }
+    });
+
+    canvas.addEventListener('click', e => {
+      const { mx, my } = canvasXY(canvas, e);
+      const hit = parcaBul(mx, my);
+      if (hit) {
+        _viz.selected = (_viz.selected === hit.id) ? null : hit.id;
+        tekrarCiz(canvas);
+        parcaBilgisiGoster(_viz.selected ? hit : null);
+      } else {
+        _viz.selected = null;
+        tekrarCiz(canvas);
+        parcaBilgisiGoster(null);
+      }
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      _viz.hovered = null;
+      canvas.style.cursor = 'default';
+      tekrarCiz(canvas);
+    });
+  }
+
+  function canvasXY(canvas, e) {
+    const r = canvas.getBoundingClientRect();
+    return {
+      mx: (e.clientX - r.left) * (canvas.width  / r.width),
+      my: (e.clientY - r.top)  * (canvas.height / r.height),
+    };
+  }
+
+  function parcaBul(mx, my) {
+    for (let i = _viz.parts.length - 1; i >= 0; i--) {
+      for (const r of _viz.parts[i].hit) {
+        if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
+          return _viz.parts[i];
+        }
+      }
+    }
+    return null;
+  }
+
+  function tekrarCiz(canvas) {
+    const ctx = canvas.getContext('2d');
+    const d = _viz.data;
+    if (!d) return;
+    const { CW, CH, ox, oy, dW, dH, DDX, DDY, PANEL, DOOR_GAP,
+            iL, iT, iW, dH2, stileW, railH, doors } = d;
+
+    ctx.clearRect(0, 0, CW, CH);
+
+    // ── Zemin gölgesi ────────────────────────────────────────
+    const sg = ctx.createRadialGradient(ox + dW / 2, oy + dH + 18, 10, ox + dW / 2, oy + dH + 18, dW * 0.55);
+    sg.addColorStop(0, 'rgba(0,0,0,0.3)');
+    sg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.ellipse(ox + dW / 2, oy + dH + 12, dW * 0.48, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── Sağ yüz (3D derinlik) ────────────────────────────────
+    ctx.beginPath();
+    ctx.moveTo(ox + dW,       oy);
+    ctx.lineTo(ox + dW + DDX, oy + DDY);
+    ctx.lineTo(ox + dW + DDX, oy + dH + DDY);
+    ctx.lineTo(ox + dW,       oy + dH);
+    ctx.closePath();
+    const sG = ctx.createLinearGradient(ox + dW, 0, ox + dW + DDX, 0);
+    sG.addColorStop(0, '#2a1b0c');
+    sG.addColorStop(1, '#150e06');
+    ctx.fillStyle = sG;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Sağ yüz ahşap dokusu (ince yatay çizgiler)
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(ox + dW, oy); ctx.lineTo(ox + dW + DDX, oy + DDY);
+    ctx.lineTo(ox + dW + DDX, oy + dH + DDY); ctx.lineTo(ox + dW, oy + dH);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 0.8;
+    for (let gy = oy + 8; gy < oy + dH; gy += 10) {
+      ctx.beginPath();
+      ctx.moveTo(ox + dW, gy);
+      ctx.lineTo(ox + dW + DDX, gy + DDY + (gy - oy) / dH * 0);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // ── Üst yüz (3D derinlik) ────────────────────────────────
+    ctx.beginPath();
+    ctx.moveTo(ox,       oy);
+    ctx.lineTo(ox + DDX, oy + DDY);
+    ctx.lineTo(ox + dW + DDX, oy + DDY);
+    ctx.lineTo(ox + dW, oy);
+    ctx.closePath();
+    const tG = ctx.createLinearGradient(0, oy + DDY, 0, oy);
+    tG.addColorStop(0, '#3e2910');
+    tG.addColorStop(1, '#2e1e0a');
+    ctx.fillStyle = tG;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Üst yüz ahşap dokusu (ince dikey çizgiler)
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(ox, oy); ctx.lineTo(ox + DDX, oy + DDY);
+    ctx.lineTo(ox + dW + DDX, oy + DDY); ctx.lineTo(ox + dW, oy);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 0.8;
+    for (let gx = ox + 10; gx < ox + dW; gx += 12) {
+      ctx.beginPath();
+      ctx.moveTo(gx, oy); ctx.lineTo(gx + DDX, oy + DDY);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // ── Ön yüz arka planı ────────────────────────────────────
+    ctx.fillStyle = '#1a1208';
+    ctx.fillRect(ox, oy, dW, dH);
+
+    // Ön yüz ince çerçeve çizgisi
+    ctx.strokeStyle = 'rgba(80,60,30,0.8)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(ox, oy, dW, dH);
+
+    // Yardımcı fonksiyonlar
+    function isSelected(id) { return _viz.selected === id; }
+    function isHovered(id)  { return _viz.hovered  === id && _viz.selected !== id; }
+
+    function woodPanel(x, y, w, h, hexColor, sel, hov, vertical) {
+      if (w <= 0 || h <= 0) return;
+
+      // Gradyan (tahta ışık efekti)
+      const gr = vertical
+        ? ctx.createLinearGradient(x, y, x + w, y)
+        : ctx.createLinearGradient(x, y, x, y + h);
+      const pr = parseInt(hexColor.slice(1,3), 16);
+      const pg = parseInt(hexColor.slice(3,5), 16);
+      const pb = parseInt(hexColor.slice(5,7), 16);
+      const c  = (a, da) => `rgb(${Math.min(255,Math.max(0,pr+da[0]+a))},${Math.min(255,Math.max(0,pg+da[1]+a))},${Math.min(255,Math.max(0,pb+da[2]+a))})`;
+      gr.addColorStop(0,   c(-22, [0,0,0]));
+      gr.addColorStop(0.3, c( 18, [5,3,0]));
+      gr.addColorStop(0.65,c(  0, [0,0,0]));
+      gr.addColorStop(1,   c(-18, [0,0,0]));
+      ctx.fillStyle = gr;
+      ctx.fillRect(x, y, w, h);
+
+      // Ahşap damar çizgileri
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+      ctx.lineWidth = 0.7;
+      ctx.setLineDash([]);
+      if (vertical) {
+        for (let gy = y + 7; gy < y + h; gy += 10) {
+          ctx.beginPath(); ctx.moveTo(x + 1, gy); ctx.lineTo(x + w - 1, gy + 0.8); ctx.stroke();
+        }
+      } else {
+        for (let gx = x + 9; gx < x + w; gx += 12) {
+          ctx.beginPath(); ctx.moveTo(gx, y + 1); ctx.lineTo(gx + 0.8, y + h - 1); ctx.stroke();
+        }
+      }
+      // Üst kenar aydınlık
+      ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + h); ctx.stroke();
+      // Alt kenar gölge
+      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.stroke();
+      ctx.restore();
+
+      // Seçim / hover efekti
+      if (sel) {
+        ctx.fillStyle = 'rgba(79,124,255,0.22)';
+        ctx.fillRect(x, y, w, h);
+        ctx.save();
+        ctx.shadowColor = 'rgba(79,124,255,0.9)';
+        ctx.shadowBlur  = 12;
+        ctx.strokeStyle = '#4f7cff';
+        ctx.lineWidth   = 2.5;
+        ctx.setLineDash([]);
+        ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+        ctx.restore();
+      } else if (hov) {
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = 'rgba(255,255,255,0.38)';
+        ctx.lineWidth   = 1.5;
+        ctx.setLineDash([]);
+        ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+      }
+    }
+
+    function glassPanel(x, y, w, h, sel, hov) {
+      if (w <= 0 || h <= 0) return;
+      const gg = ctx.createLinearGradient(x, y, x + w, y + h);
+      gg.addColorStop(0,   'rgba(79,124,255,0.09)');
+      gg.addColorStop(0.45,'rgba(100,150,255,0.16)');
+      gg.addColorStop(1,   'rgba(60,90,220,0.08)');
+      ctx.fillStyle = gg;
+      ctx.fillRect(x, y, w, h);
+
+      // Cam yansımaları
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x + 6, y + 6); ctx.lineTo(x + w * 0.42, y + h * 0.42); ctx.stroke();
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x + 6, y + h * 0.28); ctx.lineTo(x + w * 0.2, y + h * 0.52); ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.restore();
+
+      // Cam kenarlığı
+      ctx.strokeStyle = sel ? '#4f7cff' : (hov ? 'rgba(255,255,255,0.45)' : 'rgba(79,124,255,0.4)');
+      ctx.lineWidth   = sel ? 2.5 : 1.5;
+      ctx.setLineDash([]);
+      ctx.strokeRect(x, y, w, h);
+
+      if (sel) {
+        ctx.fillStyle = 'rgba(79,124,255,0.2)';
+        ctx.fillRect(x, y, w, h);
+        ctx.save();
+        ctx.shadowColor = 'rgba(79,124,255,0.85)';
+        ctx.shadowBlur  = 14;
+        ctx.strokeStyle = '#4f7cff';
+        ctx.lineWidth   = 2.5;
+        ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+        ctx.restore();
+      } else if (hov) {
+        ctx.fillStyle = 'rgba(255,255,255,0.07)';
+        ctx.fillRect(x, y, w, h);
+      }
+    }
+
+    function handle(sx, sy, sw, sh) {
+      const hx  = sx + sw / 2;
+      const hy1 = sy + sh * 0.37;
+      const hy2 = sy + sh * 0.63;
+      const hw  = Math.max(3, sw * 0.28);
+      const hG  = ctx.createLinearGradient(hx - hw, 0, hx + hw, 0);
+      hG.addColorStop(0,   '#777');
+      hG.addColorStop(0.4, '#eee');
+      hG.addColorStop(1,   '#888');
+      ctx.save();
+      ctx.lineCap = 'round';
+      // Bar
+      ctx.strokeStyle = hG;
+      ctx.lineWidth   = hw * 1.8;
+      ctx.beginPath(); ctx.moveTo(hx, hy1); ctx.lineTo(hx, hy2); ctx.stroke();
+      // Uç kapaklar
+      [hy1, hy2].forEach(hy => {
+        ctx.beginPath(); ctx.arc(hx, hy, hw, 0, Math.PI * 2);
+        ctx.fillStyle = '#ccc'; ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    // ── Parçaları Çiz ─────────────────────────────────────────
+    const FC = '#4A2E12'; // ana çerçeve rengi
+    const DC = '#6B3E1C'; // kapı rengi
+
+    // Dış çerçeve
+    woodPanel(ox, oy, dW, PANEL, FC, isSelected('ustKasa'), isHovered('ustKasa'), false);
+    woodPanel(ox, oy + dH - PANEL, dW, PANEL, FC, isSelected('altKasa'), isHovered('altKasa'), false);
+    woodPanel(ox, oy, PANEL, dH, FC, isSelected('dikeyKasa'), isHovered('dikeyKasa'), true);
+    woodPanel(ox + dW - PANEL, oy, PANEL, dH, FC, isSelected('dikeyKasa'), isHovered('dikeyKasa'), true);
+
+    // Kapı bölücüler (dekoratif aralıklar)
+    ctx.fillStyle = '#2a1a08';
+    for (let i = 0; i < doors.length - 1; i++) {
+      const x = doors[i].dx + doors[i].dw;
+      ctx.fillRect(x, iT, DOOR_GAP, dH2);
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, iT, DOOR_GAP, dH2);
+    }
+
+    // Kapılar (stile/ray/cam/kol)
+    doors.forEach(dd => {
+      // stile
+      woodPanel(dd.dx, iT, stileW, dH2, DC, isSelected('duzDikey'), isHovered('duzDikey'), true);
+      woodPanel(dd.dx + dd.dw - stileW, iT, stileW, dH2, DC, isSelected('kolluDikey'), isHovered('kolluDikey'), true);
+      // ray
+      woodPanel(dd.dx + stileW, iT,               dd.dw - 2 * stileW, railH, DC, isSelected('duzYatay'), isHovered('duzYatay'), false);
+      woodPanel(dd.dx + stileW, iT + dH2 - railH, dd.dw - 2 * stileW, railH, DC, isSelected('duzYatay'), isHovered('duzYatay'), false);
+      // cam
+      glassPanel(dd.g.x, dd.g.y, dd.g.w, dd.g.h, isSelected('cam'), isHovered('cam'));
+      // kol
+      handle(dd.dx + dd.dw - stileW, iT, stileW, dH2);
+    });
+
+    // Seçili parça etiketi canvas üzerinde
+    if (_viz.selected) {
+      const p = _viz.parts.find(pp => pp.id === _viz.selected);
+      if (p && p.hit.length > 0) {
+        const r0 = p.hit[0];
+        const lx = r0.x + r0.w / 2;
+        const ly = r0.y + r0.h / 2;
+        ctx.font = 'bold 10px Segoe UI, sans-serif';
+        ctx.textAlign = 'center';
+        // Gölge
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillText(p.label, lx + 1, ly + 4 + 1);
+        // Metin
+        ctx.fillStyle = '#fff';
+        ctx.fillText(p.label, lx, ly + 4);
+      }
+    }
+
+    // ── Ölçü çizgileri ──────────────────────────────────────
+    ctx.strokeStyle = 'rgba(79,124,255,0.55)';
+    ctx.fillStyle   = '#7b82b0';
+    ctx.font        = 'bold 11px Segoe UI, sans-serif';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([4, 4]);
+
+    // Alt (en)
+    const dimY = oy + dH + 26;
+    ctx.beginPath(); ctx.moveTo(ox, dimY); ctx.lineTo(ox + dW, dimY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(ox,      dimY - 5); ctx.lineTo(ox,      dimY + 5); ctx.stroke();
+    ctx.moveTo(ox + dW, dimY - 5); ctx.lineTo(ox + dW, dimY + 5); ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#7b82b0';
+    ctx.fillText(`↔  ${_viz.W} cm`, ox + dW / 2, dimY + 15);
+
+    // Sağ (boy)
+    const dimX = ox + dW + DDX + 22;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(79,124,255,0.55)';
+    ctx.beginPath(); ctx.moveTo(dimX, oy); ctx.lineTo(dimX, oy + dH); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(dimX - 5, oy);      ctx.lineTo(dimX + 5, oy);      ctx.stroke();
+    ctx.moveTo(dimX - 5, oy + dH); ctx.lineTo(dimX + 5, oy + dH); ctx.stroke();
+    ctx.save();
+    ctx.translate(dimX + 15, oy + dH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#7b82b0';
+    ctx.fillText(`↕  ${_viz.H} cm`, 0, 0);
+    ctx.restore();
+
+    // İpucu yazısı (hiçbir şey seçili değilse)
+    if (!_viz.selected && !_viz.hovered) {
+      ctx.font = '10.5px Segoe UI, sans-serif';
+      ctx.fillStyle = 'rgba(123,130,176,0.4)';
+      ctx.textAlign = 'center';
+      ctx.fillText('↑ parçalara tıklayın', ox + dW / 2, dimY + 30);
+    }
+    ctx.setLineDash([]);
+  }
+
+  // ── Parça bilgisi paneli ──────────────────────────────────────
+  function parcaBilgisiGoster(part) {
+    const panel = document.getElementById('partInfoPanel');
+    if (!part) { panel.style.display = 'none'; return; }
+    panel.style.display = 'flex';
+    const iconMap = {
+      ustKasa: ICONS.ustKasa, altKasa: ICONS.altKasa,
+      dikeyKasa: ICONS.dikeyKasa, duzDikey: ICONS.duzDikey,
+      kolluDikey: ICONS.kolluDikey, duzYatay: ICONS.duzYatay, cam: ICONS.cam,
+    };
+    document.getElementById('partInfoIcon').innerHTML  = iconMap[part.id] || '';
+    document.getElementById('partInfoName').textContent = part.label;
+    document.getElementById('partInfoCat').textContent  = part.cat;
+    document.getElementById('partInfoSize').textContent = part.size;
+    document.getElementById('partInfoCount').textContent = part.count;
+  }
+
+  function desecilenParca() {
+    _viz.selected = null;
+    document.getElementById('partInfoPanel').style.display = 'none';
+    const c = document.getElementById('cabinetCanvas');
+    if (c) tekrarCiz(c);
+  }
+
+  // Malzeme Listesi kaldırıldı (kopyala/excel deaktif).
+
+  function showToast(mesaj) {
+    const t = document.getElementById('toast');
+    t.textContent = mesaj || '✅ Panoya kopyalandı!';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // ── Çoklu dolap girişleri ────────────────────────────────────
+  function renderDolapInputs(count) {
+    const wrap = document.getElementById('dolapInputs');
+    if (!wrap) return;
+    const n = Math.max(1, Math.min(6, parseInt(count || 1, 10) || 1));
+
+    const mevcut = [];
+    for (let i = 1; i <= n; i++) {
+      const wEl = document.getElementById(`widthInput_${i}`);
+      const hEl = document.getElementById(`heightInput_${i}`);
+      const dEl = document.getElementById(`doorCount_${i}`);
+      mevcut.push({
+        w: wEl ? wEl.value : '',
+        h: hEl ? hEl.value : '',
+        d: dEl ? dEl.value : '2',
+      });
+    }
+
+    wrap.innerHTML = Array.from({ length: n }, (_, idx) => {
+      const i = idx + 1;
+      return `
+        <div class="card" style="background:var(--surface2);border-radius:var(--radius-sm);padding:16px;margin-top:${i===1?10:12}px;border:1px solid rgba(46,51,80,0.7);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="font-weight:900;letter-spacing:0.08em;text-transform:uppercase;font-size:0.78rem;color:var(--text);">Dolap ${i}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);">En/Boy/Kanat</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="input-wrapper">
+              <input type="number" id="widthInput_${i}" placeholder="En (cm)" min="30" max="600" step="0.1"
+                     style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:1.05rem;font-weight:650;padding:11px 14px;outline:none;" />
+              <span class="unit-badge">cm</span>
+            </div>
+            <div class="input-wrapper">
+              <input type="number" id="heightInput_${i}" placeholder="Boy (cm)" min="30" max="250" step="0.1"
+                     style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:1.05rem;font-weight:650;padding:11px 14px;outline:none;" />
+              <span class="unit-badge">cm</span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;align-items:center;">
+            <div class="input-wrapper">
+              <select id="doorCount_${i}" style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:1.0rem;font-weight:650;padding:11px 14px;outline:none;">
+                <option value="2">2 Kanat</option>
+                <option value="3">3 Kanat</option>
+                <option value="4">4 Kanat</option>
+                <option value="5">5 Kanat</option>
+                <option value="6">6 Kanat</option>
+              </select>
+            </div>
+            <div class="error-msg" id="dolapErr_${i}" style="display:none;margin:0;">Lütfen geçerli En/Boy girin.</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // restore values
+    for (let i = 1; i <= n; i++) {
+      const v = mevcut[i-1] || {};
+      const wEl = document.getElementById(`widthInput_${i}`);
+      const hEl = document.getElementById(`heightInput_${i}`);
+      const dEl = document.getElementById(`doorCount_${i}`);
+      if (wEl && v.w !== undefined) wEl.value = v.w;
+      if (hEl && v.h !== undefined) hEl.value = v.h;
+      if (dEl && v.d !== undefined) dEl.value = v.d;
+      [wEl, hEl, dEl].forEach(el => el && el.addEventListener('input', () => {
+        const any = getDolaplar().some(x => x.W && x.H);
+        if (any) hesapla();
+      }));
+      if (dEl) dEl.addEventListener('change', () => {
+        const any = getDolaplar().some(x => x.W && x.H);
+        if (any) hesapla();
+      });
+    }
+  }
+
+  function getDolaplar() {
+    const sel = document.getElementById('cabinetCount');
+    const n = Math.max(1, Math.min(6, parseInt(sel ? sel.value : '1', 10) || 1));
+    const arr = [];
+    for (let i = 1; i <= n; i++) {
+      const W = parseFloat((document.getElementById(`widthInput_${i}`) || {}).value);
+      const H = parseFloat((document.getElementById(`heightInput_${i}`) || {}).value);
+      const kanatN = parseInt((document.getElementById(`doorCount_${i}`) || {}).value || '2', 10);
+      arr.push({ id: i, W, H, kanatN: [2,3,4,5,6].includes(kanatN) ? kanatN : 2 });
+    }
+    return arr;
+  }
+
+  // Enter ile hesaplama
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') hesapla();
+  });
+
+  // ── Ön tanım çipleri ─────────────────────────────────────────
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const w = chip.dataset.w;
+      const h = chip.dataset.h;
+      const wEl = document.getElementById('widthInput_1');
+      const hEl = document.getElementById('heightInput_1');
+      if (wEl) wEl.value = w;
+      if (hEl) hEl.value = h;
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      hesapla();
+    });
+  });
+
+  // Dolap sayısı değişince inputları yeniden çiz
+  const _cabSel = document.getElementById('cabinetCount');
+  if (_cabSel) {
+    _cabSel.addEventListener('change', () => {
+      renderDolapInputs(_cabSel.value);
+      const any = getDolaplar().some(x => x.W && x.H);
+      if (any) hesapla();
+    });
+  }
+
+  // Maliyet değişince fiyat listesini güncelle
+  ['costKasa', 'costKanat', 'costTeker', 'costYay'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      try { localStorage.setItem('cc_cost_'+id, el.value || ''); } catch {}
+      const any = getDolaplar().some(x => x.W && x.H);
+      if (any) hesapla();
+    });
+  });
+
+  // Sayfa açılışında örnek değeri yükle
+  window.addEventListener('load', () => {
+    _loginInit();
+    const cc = document.getElementById('cabinetCount');
+    if (cc) cc.value = '1';
+    renderDolapInputs(1);
+    const w1 = document.getElementById('widthInput_1');
+    const h1 = document.getElementById('heightInput_1');
+    if (w1) w1.value = 111;
+    if (h1) h1.value = 68.5;
+    try {
+      const ck = localStorage.getItem('cc_cost_costKasa');
+      const cn = localStorage.getItem('cc_cost_costKanat');
+      const ct = localStorage.getItem('cc_cost_costTeker');
+      const cy = localStorage.getItem('cc_cost_costYay');
+      if (ck !== null) document.getElementById('costKasa').value = ck;
+      if (cn !== null) document.getElementById('costKanat').value = cn;
+      if (ct !== null) document.getElementById('costTeker').value = ct;
+      if (cy !== null) document.getElementById('costYay').value = cy;
+    } catch {}
+  });
+
+  // ── Poz Görünümleri ──────────────────────────────────────────
+  function olusturPozGoruntumleri(W, H, altUst, dikeyKasa, duzDikey, duzYatay, camEn, camBoy, kanatN) {
+    const grid = document.getElementById('pozGrid');
+    const baslik = `Poz: 1 / Ad: 1Ön Görünüş — ${W}×${H} cm`;
+    grid.innerHTML = `
+      <div class="poz-kart">
+        <div class="poz-kart-header">
+          <span class="poz-kart-no">${baslik}</span>
+        </div>
+        <div class="poz-drawing">
+          ${cizimSVGPoz('tam', W, H, altUst, dikeyKasa, duzDikey, duzYatay, camEn, camBoy, false, kanatN)}
+        </div>
+      </div>
+    `;
+
+    document.getElementById('pozCard').style.display = 'block';
+  }
+
+  function olusturPozGoruntumleriCoklu(liste) {
+    const grid = document.getElementById('pozGrid');
+    grid.innerHTML = liste.map(d => {
+      const baslik = `Dolap ${d.id} — Poz: 1 / Ad: 1Ön Görünüş — ${d.W}×${d.H} cm · ${d.kanatN} kanat`;
+      return `
+        <div class="poz-kart">
+          <div class="poz-kart-header">
+            <span class="poz-kart-no">${baslik}</span>
+          </div>
+          <div class="poz-drawing">
+            ${cizimSVGPoz('tam', d.W, d.H, d.altUst, d.dikeyKasa, d.duzDikey, d.duzYatay, d.camEn, d.camBoy, false, d.kanatN)}
+          </div>
+        </div>`;
+    }).join('');
+    document.getElementById('pozCard').style.display = 'block';
+  }
+
+  function cizimSVGPoz(tip, W, H, altUst, dikeyKasa, duzDikey, duzYatay, camEn, camBoy, mirror, kanatN) {
+    const VW = 284, VH = 194;
+    const DARK  = '#080b11';
+    const FRAME = '#3a4e6e';
+    const DOOR  = '#253248';
+    const DLINE = '#4d6080';
+    const GLASS = 'rgba(79,124,255,0.1)';
+    const GLINE = '#4f7cff';
+    const DIM   = '#4f7cff';
+    const DIMT  = '#7b99cc';
+
+    const ML = 34, MR = 26, MT = 18, MB = 28;
+    const areaW = VW - ML - MR, areaH = VH - MT - MB;
+
+    let cW = (tip === 'kapi') ? W / 2 : W;
+    let cH = H;
+
+    const scale = Math.min(areaW / cW, areaH / cH) * 0.84;
+    const dW = cW * scale, dH = cH * scale;
+    const ox = ML + (areaW - dW) / 2;
+    const oy = MT + (areaH - dH) / 2;
+    const FW = Math.max(7, dW * 0.048);
+    const FH = Math.max(5, dH * 0.048);
+
+    let p = '';
+
+    if (tip === 'tam' || tip === 'kasa') {
+      p += `
+        <rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="${FRAME}28" stroke="${DLINE}" stroke-width="0.8"/>
+        <rect x="${ox}" y="${oy}" width="${dW}" height="${FH}" fill="${FRAME}" stroke="${DLINE}" stroke-width="0.7"/>
+        <rect x="${ox}" y="${oy+dH-FH}" width="${dW}" height="${FH}" fill="${FRAME}" stroke="${DLINE}" stroke-width="0.7"/>
+        <rect x="${ox}" y="${oy}" width="${FW}" height="${dH}" fill="${FRAME}" stroke="${DLINE}" stroke-width="0.7"/>
+        <rect x="${ox+dW-FW}" y="${oy}" width="${FW}" height="${dH}" fill="${FRAME}" stroke="${DLINE}" stroke-width="0.7"/>`;
+
+      if (tip === 'tam') {
+        const iL = ox+FW, iR = ox+dW-FW, iT = oy+FH, iB = oy+dH-FH;
+        const iW = iR-iL, iH = iB-iT;
+        const doorsN = Math.max(2, Math.min(6, parseInt(kanatN || 2, 10) || 2));
+        const gap = 3;
+        const totalGap = (doorsN - 1) * gap;
+        const doorW = (iW - totalGap) / doorsN;
+
+        for (let k = 0; k < doorsN - 1; k++) {
+          const sx = iL + (k + 1) * doorW + k * gap;
+          p += `<rect x="${sx}" y="${iT}" width="${gap}" height="${iH}" fill="#111825"/>`;
+        }
+
+        for (let k = 0; k < doorsN; k++) {
+          const dx = iL + k * (doorW + gap);
+          // Kollar sağ stile (tüm kanatlarda kollu stile var)
+          p += _kapiSVG(dx, iT, doorW, iH, false, FRAME, DOOR, GLASS, GLINE, DLINE);
+        }
+
+        // İç ölçü etiketleri (geometri tarzı) — okunurluk: halo + auto-scale + çakışma azaltma
+        const labelC = 'rgba(230,238,255,0.92)';
+        const label2 = 'rgba(175,194,255,0.88)';
+        const halo   = 'rgba(0,0,0,0.72)';
+        const fit    = (v, a, b) => Math.max(a, Math.min(b, v));
+        const fsBase = fit(doorW * 0.18, 6.8, 9.0);     // dar kanatta küçülür
+        const fsCam  = fit(doorW * 0.16, 6.4, 8.6);
+        for (let k = 0; k < doorsN; k++) {
+          const dx = iL + k * (doorW + gap);
+          const sW = Math.max(5, doorW * 0.08);
+          const rH = Math.max(4, iH * 0.08);
+          const gx = dx + sW, gy = iT + rH, gw = doorW - 2 * sW, gh = iH - 2 * rH;
+
+          // Dikey ölçü (kollu stile boyunca)
+          // Çakışmayı önlemek için 2 ayrı "şerit"te konumlandır
+          const vx = dx + doorW - sW/2;
+          const vy = iT + iH * ((k % 2) ? 0.62 : 0.38);
+          p += `
+            <text x="${vx}" y="${vy}" fill="${labelC}" font-size="${fsBase}" font-weight="900"
+                  text-anchor="middle" font-family="'Courier New',monospace"
+                  transform="rotate(-90,${vx},${vy})"
+                  style="paint-order:stroke;stroke:${halo};stroke-width:3px;stroke-linejoin:round;">${duzDikey} cm</text>
+          `;
+
+          // Yatay ölçü (üst ray üzerinde)
+          const hx = dx + doorW/2;
+          const hy = iT + rH - 2;
+          p += `
+            <text x="${hx}" y="${hy}" fill="${label2}" font-size="${fsBase-0.3}" font-weight="900"
+                  text-anchor="middle" font-family="'Courier New',monospace"
+                  style="paint-order:stroke;stroke:${halo};stroke-width:3px;stroke-linejoin:round;">${duzYatay} cm</text>
+          `;
+
+          // Cam ölçüsü (camın altına yakın — dikey yazıyla çakışmasın)
+          const cx = gx + gw/2;
+          const cy = gy + gh*0.82;
+          p += `
+            <text x="${cx}" y="${cy}" fill="rgba(154,185,255,0.92)" font-size="${fsCam}" font-weight="900"
+                  text-anchor="middle" font-family="'Courier New',monospace"
+                  style="paint-order:stroke;stroke:${halo};stroke-width:3px;stroke-linejoin:round;">${camEn}×${camBoy}</text>
+          `;
+        }
+      }
+      p += _dimSVG(ox, oy, dW, dH, W, H, DIM, DIMT);
+
+    } else {
+      const sW = Math.max(5, dW*0.10);
+      const rH = Math.max(4, dH*0.09);
+      p += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="${DOOR}44" stroke="${DLINE}" stroke-width="0.8"/>`;
+      p += _kapiSVG(ox, oy, dW, dH, mirror, FRAME, DOOR, GLASS, GLINE, DLINE);
+      p += _dimSVG(ox, oy, dW, dH, round(W/2), H, DIM, DIMT);
+    }
+
+    return `<svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="${VW}" height="${VH}" fill="${DARK}"/>
+      ${p}
+    </svg>`;
+  }
+
+  function _kapiSVG(dx, dy, dW, dH, handleSol, frameC, doorC, glassFill, glineC, lineC) {
+    const sW = Math.max(5, dW * 0.08);
+    const rH = Math.max(4, dH * 0.08);
+    const gx = dx+sW, gy = dy+rH, gw = dW-2*sW, gh = dH-2*rH;
+    const hx = handleSol ? dx+sW/2 : dx+dW-sW/2;
+    const hy1 = dy+dH*0.37, hy2 = dy+dH*0.63;
+    return `
+      <rect x="${dx}" y="${dy}" width="${dW}" height="${dH}" fill="${doorC}33"/>
+      <rect x="${dx}" y="${dy}" width="${sW}" height="${dH}" fill="${frameC}" stroke="${lineC}" stroke-width="0.5"/>
+      <rect x="${dx+dW-sW}" y="${dy}" width="${sW}" height="${dH}" fill="${frameC}" stroke="${lineC}" stroke-width="0.5"/>
+      <rect x="${dx+sW}" y="${dy}" width="${gw}" height="${rH}" fill="${frameC}" stroke="${lineC}" stroke-width="0.5"/>
+      <rect x="${dx+sW}" y="${dy+dH-rH}" width="${gw}" height="${rH}" fill="${frameC}" stroke="${lineC}" stroke-width="0.5"/>
+      <rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" fill="${glassFill}" stroke="${glineC}" stroke-width="0.8"/>
+      <line x1="${gx+5}" y1="${gy+5}" x2="${gx+gw*.38}" y2="${gy+gh*.38}" stroke="rgba(255,255,255,0.11)" stroke-width="1.8" stroke-linecap="round"/>
+      <rect x="${hx-2}" y="${hy1}" width="4" height="${hy2-hy1}" rx="2" fill="#a8b8d8" opacity="0.8"/>`;
+  }
+
+  function _dimSVG(ox, oy, dW, dH, W, H, dimC, textC) {
+    const bY = oy+dH+12, rX = ox+dW+11;
+    return `
+      <line x1="${ox}" y1="${bY}" x2="${ox+dW}" y2="${bY}" stroke="${dimC}" stroke-width="0.8" stroke-dasharray="3,2"/>
+      <line x1="${ox}" y1="${bY-4}" x2="${ox}" y2="${bY+4}" stroke="${dimC}" stroke-width="1"/>
+      <line x1="${ox+dW}" y1="${bY-4}" x2="${ox+dW}" y2="${bY+4}" stroke="${dimC}" stroke-width="1"/>
+      <polygon points="${ox+5},${bY} ${ox+11},${bY-2.5} ${ox+11},${bY+2.5}" fill="${dimC}"/>
+      <polygon points="${ox+dW-5},${bY} ${ox+dW-11},${bY-2.5} ${ox+dW-11},${bY+2.5}" fill="${dimC}"/>
+      <text x="${ox+dW/2}" y="${bY+11}" fill="${textC}" text-anchor="middle" font-family="'Courier New',monospace" font-size="9" font-weight="bold">${W} cm</text>
+      <line x1="${rX}" y1="${oy}" x2="${rX}" y2="${oy+dH}" stroke="${dimC}" stroke-width="0.8" stroke-dasharray="3,2"/>
+      <line x1="${rX-4}" y1="${oy}" x2="${rX+4}" y2="${oy}" stroke="${dimC}" stroke-width="1"/>
+      <line x1="${rX-4}" y1="${oy+dH}" x2="${rX+4}" y2="${oy+dH}" stroke="${dimC}" stroke-width="1"/>
+      <polygon points="${rX},${oy+5} ${rX-2.5},${oy+11} ${rX+2.5},${oy+11}" fill="${dimC}"/>
+      <polygon points="${rX},${oy+dH-5} ${rX-2.5},${oy+dH-11} ${rX+2.5},${oy+dH-11}" fill="${dimC}"/>
+      <text x="${rX+10}" y="${oy+dH/2+4}" fill="${textC}" font-family="'Courier New',monospace" font-size="9" font-weight="bold">${H} cm</text>`;
+  }
+
+  // Parça Teknik Çizimleri kaldırıldı.
+
+  // ── Profil Kesim Listesi ──────────────────────────────────────
+  function olusturKesimListesi(W, H, altUst, dikeyKasa, duzDikey, duzYatay, camEn, camBoy, kanatN) {
+
+    const kapilar = [];
+    let pozNo = 1;
+    for (let i = 1; i <= kanatN; i++) {
+      kapilar.push({ poz: pozNo++, ac: `Düz Kanat Dikey — Kapı ${i} (Sol Stile)`,   adet: 1, yatay: null,     dikey: duzDikey, aci: '45/45' });
+      kapilar.push({ poz: pozNo++, ac: `Kollu Kanat Dikey — Kapı ${i} (Sağ Stile)`, adet: 1, yatay: null,     dikey: duzDikey, aci: '45/45' });
+      kapilar.push({ poz: pozNo++, ac: `Düz Kanat Yatay — Kapı ${i} (Üst & Alt Ray)`, adet: 2, yatay: duzYatay, dikey: null,   aci: '45/45' });
+    }
+
+    const bolumler = [
+      {
+        baslik: 'Kasa Profilleri',
+        renk: '#4f7cff',
+        satirlar: [
+          { poz: 1, ac: 'Üst Kasa',       adet: 1, yatay: altUst,    dikey: null,      aci: '45/45' },
+          { poz: 2, ac: 'Alt Kasa',        adet: 1, yatay: altUst,    dikey: null,      aci: '45/45' },
+          { poz: 3, ac: 'Yan Kasa (Sol)',  adet: 1, yatay: null,      dikey: dikeyKasa, aci: '45/45' },
+          { poz: 4, ac: 'Yan Kasa (Sağ)', adet: 1, yatay: null,      dikey: dikeyKasa, aci: '45/45' },
+        ],
+      },
+      {
+        baslik: 'Kanat Profilleri',
+        renk: '#f05c5c',
+        satirlar: kapilar,
+      },
+      {
+        baslik: 'Cam & Aksesuar',
+        renk: '#3dd68c',
+        satirlar: [
+          { poz: 1, ac: 'Cam Panel', adet: kanatN, yatay: camEn, dikey: camBoy, aci: 'Düz' },
+          { poz: 2, ac: 'Teker (her kanat 2 adet)', adet: kanatN * 2, yatay: null, dikey: null, aci: 'Düz' },
+          { poz: 3, ac: 'Yay (her kanat 1 adet)',   adet: kanatN * 1, yatay: null, dikey: null, aci: 'Düz' },
+        ],
+      },
+    ];
+
+    // Meta bilgisi
+    const tarih = new Date().toLocaleDateString('tr-TR');
+    const toplamAdet = bolumler.reduce((s, b) => s + b.satirlar.reduce((ss, r) => ss + r.adet, 0), 0);
+    document.getElementById('kesimMeta').innerHTML = `
+      <span>📐 Dolap: <strong>${W} × ${H} cm</strong></span>
+      <span>📅 ${tarih}</span>
+      <span>📦 Toplam: <strong>${toplamAdet} parça</strong></span>
+    `;
+
+    // Tablo HTML oluştur
+    let html = '';
+    bolumler.forEach((bolum, bi) => {
+      const topAdet  = bolum.satirlar.reduce((s, r) => s + r.adet, 0);
+      const topMetin = bolum.satirlar.map(r => {
+        const len  = r.yatay || r.dikey || 0;
+        return `${r.adet} × ${len} cm`;
+      }).join(' + ');
+      const topUzunluk = bolum.satirlar.reduce((s, r) => s + r.adet * (r.yatay || r.dikey || 0), 0);
+
+      if (bi > 0) html += '<div class="kesim-divider"></div>';
+
+      const kgTip = (bolum.baslik === 'Kasa Profilleri') ? 'kasa' : (bolum.baslik === 'Kanat Profilleri' ? 'kanat' : null);
+      const topKg = kgTip ? hesaplaAgirlik(topUzunluk, kgTip) : null;
+
+      html += `
+        <div class="kesim-section">
+          <div class="kesim-section-header" style="border-left-color:${bolum.renk};">
+            <span class="kesim-section-name">${bolum.baslik}</span>
+            <span class="kesim-section-meta">${topAdet} adet &nbsp;·&nbsp; ${round(topUzunluk)} cm${topKg !== null ? ` · ${topKg} kg` : ''} toplam</span>
+          </div>
+          <div class="kesim-table-wrap">
+          <table class="kesim-table">
+            <thead>
+              <tr>
+                <th class="c">Poz</th>
+                <th>Açıklama</th>
+                <th class="c">Adet</th>
+                <th class="c">Yatay (cm)</th>
+                <th class="c">Dikey (cm)</th>
+                <th class="c">K. Açısı</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${bolum.satirlar.map(s => `
+                <tr>
+                  <td class="td-poz">${s.poz}</td>
+                  <td class="td-aciklama">${s.ac}</td>
+                  <td class="td-adet">${s.adet}</td>
+                  <td class="td-olcu ${!s.yatay ? 'bos' : ''}">${s.yatay !== null ? s.yatay : '—'}</td>
+                  <td class="td-olcu ${!s.dikey ? 'bos' : ''}">${s.dikey !== null ? s.dikey : '—'}</td>
+                  <td class="td-aci ${s.aci === '45/45' ? 'aci-45' : s.aci === '90/90' ? 'aci-90' : 'aci-duz'}">${s.aci}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2">Toplam</td>
+                <td class="td-val">${topAdet} adet</td>
+                <td colspan="2" class="td-val">${round(topUzunluk)} cm</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+          </div>
+        </div>
+      `;
+    });
+
+    document.getElementById('kesimIcerik').innerHTML = html;
+    document.getElementById('kesimCard').style.display = 'block';
+  }
+
+  function _bolumlerForDolap(d) {
+    const kapilar = [];
+    let pozNo = 1;
+    for (let i = 1; i <= d.kanatN; i++) {
+      kapilar.push({ poz: pozNo++, ac: `Düz Kanat Dikey — Kapı ${i} (Sol Stile)`,   adet: 1, yatay: null,     dikey: d.duzDikey, aci: '45/45' });
+      kapilar.push({ poz: pozNo++, ac: `Kollu Kanat Dikey — Kapı ${i} (Sağ Stile)`, adet: 1, yatay: null,     dikey: d.duzDikey, aci: '45/45' });
+      kapilar.push({ poz: pozNo++, ac: `Düz Kanat Yatay — Kapı ${i} (Üst & Alt Ray)`, adet: 2, yatay: d.duzYatay, dikey: null,   aci: '45/45' });
+    }
+    return [
+      {
+        baslik: 'Kasa Profilleri',
+        renk: '#4f7cff',
+        satirlar: [
+          { poz: 1, ac: 'Üst Kasa',       adet: 1, yatay: d.altUst,    dikey: null,       aci: '45/45' },
+          { poz: 2, ac: 'Alt Kasa',       adet: 1, yatay: d.altUst,    dikey: null,       aci: '45/45' },
+          { poz: 3, ac: 'Yan Kasa (Sol)', adet: 1, yatay: null,       dikey: d.dikeyKasa, aci: '45/45' },
+          { poz: 4, ac: 'Yan Kasa (Sağ)', adet: 1, yatay: null,       dikey: d.dikeyKasa, aci: '45/45' },
+        ],
+      },
+      { baslik: 'Kanat Profilleri', renk: '#f05c5c', satirlar: kapilar },
+      {
+        baslik: 'Cam & Aksesuar',
+        renk: '#3dd68c',
+        satirlar: [
+          { poz: 1, ac: 'Cam Panel', adet: d.kanatN,     yatay: d.camEn, dikey: d.camBoy, aci: 'Düz' },
+          { poz: 2, ac: 'Teker (her kanat 2 adet)', adet: d.kanatN * 2, yatay: null,     dikey: null,   aci: 'Düz' },
+          { poz: 3, ac: 'Yay (her kanat 1 adet)',   adet: d.kanatN * 1, yatay: null,     dikey: null,   aci: 'Düz' },
+        ],
+      },
+    ];
+  }
+
+  function olusturKesimListesiCoklu(liste) {
+    const tarih = new Date().toLocaleDateString('tr-TR');
+    const toplamDolap = liste.length;
+    document.getElementById('kesimMeta').innerHTML = `
+      <span>📦 Dolap: <strong>${toplamDolap} adet</strong></span>
+      <span>📅 ${tarih}</span>
+      <span>📐 Birleşik kesim listesi</span>
+    `;
+
+    let html = '';
+    liste.forEach((d, idx) => {
+      const bolumler = _bolumlerForDolap(d);
+      if (idx > 0) html += '<div class="kesim-divider"></div>';
+      html += `
+        <div class="kesim-section">
+          <div class="kesim-section-header" style="border-left-color:#7c5cfc;">
+            <span class="kesim-section-name">Dolap ${d.id}</span>
+            <span class="kesim-section-meta">${d.W}×${d.H} cm · ${d.kanatN} kanat</span>
+          </div>
+        </div>
+      `;
+      bolumler.forEach((bolum, bi) => {
+        const topAdet  = bolum.satirlar.reduce((s, r) => s + r.adet, 0);
+        const topUzunluk = bolum.satirlar.reduce((s, r) => s + r.adet * (r.yatay || r.dikey || 0), 0);
+        const kgTip = (bolum.baslik === 'Kasa Profilleri') ? 'kasa' : (bolum.baslik === 'Kanat Profilleri' ? 'kanat' : null);
+        const topKg = kgTip ? hesaplaAgirlik(topUzunluk, kgTip) : null;
+        if (bi > 0) html += '<div class="kesim-divider" style="margin:14px 0;opacity:.25;"></div>';
+        html += `
+          <div class="kesim-section">
+            <div class="kesim-section-header" style="border-left-color:${bolum.renk};">
+              <span class="kesim-section-name">${bolum.baslik}</span>
+              <span class="kesim-section-meta">${topAdet} adet · ${round(topUzunluk)} cm${topKg !== null ? ` · ${topKg} kg` : ''} toplam</span>
+            </div>
+            <div class="kesim-table-wrap">
+            <table class="kesim-table">
+              <thead>
+                <tr>
+                  <th class="c">Poz</th>
+                  <th>Açıklama</th>
+                  <th class="c">Adet</th>
+                  <th class="c">Yatay (cm)</th>
+                  <th class="c">Dikey (cm)</th>
+                  <th class="c">K. Açısı</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${bolum.satirlar.map(s => `
+                  <tr>
+                    <td class="td-poz">${s.poz}</td>
+                    <td class="td-aciklama">${s.ac}</td>
+                    <td class="td-adet">${s.adet}</td>
+                    <td class="td-olcu ${!s.yatay ? 'bos' : ''}">${s.yatay !== null ? s.yatay : '—'}</td>
+                    <td class="td-olcu ${!s.dikey ? 'bos' : ''}">${s.dikey !== null ? s.dikey : '—'}</td>
+                    <td class="td-aci ${s.aci === '45/45' ? 'aci-45' : s.aci === '90/90' ? 'aci-90' : 'aci-duz'}">${s.aci}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        `;
+      });
+    });
+
+    document.getElementById('kesimIcerik').innerHTML = html;
+    document.getElementById('kesimCard').style.display = 'block';
+  }
+
+  // ── PDF indir: html2canvas + jsPDF (html2pdf paketi birçok ortamda boş PDF veriyordu) ──
+  function pdfMotoruYoksa() {
+    return typeof html2canvas !== 'function' || !window.jspdf || typeof window.jspdf.jsPDF !== 'function';
+  }
+  /**
+   * @param {HTMLElement} el
+   * @param {string} filename
+   * @param {{ marginMm?: number, scale?: number }} [opts]
+   */
+  async function pdfIndirFromElement(el, filename, opts) {
+    if (pdfMotoruYoksa()) {
+      alert('PDF kütüphaneleri yüklenemedi. İnternet bağlantınızı kontrol edin veya sayfayı yenileyin.');
+      return;
+    }
+    const marginMm = opts && opts.marginMm != null ? opts.marginMm : 8;
+    const scale = opts && opts.scale != null ? opts.scale : 2;
+
+    const veil = document.createElement('div');
+    veil.setAttribute('data-cc-pdf-veil', '');
+    veil.style.cssText =
+      'position:fixed!important;inset:0!important;background:#0f1117!important;z-index:2147483640!important;pointer-events:auto!important;';
+    document.body.appendChild(veil);
+
+    const prevStyle = el.getAttribute('style') || '';
+    let canvas;
+    try {
+      el.style.setProperty('position', 'fixed', 'important');
+      el.style.setProperty('left', '0', 'important');
+      el.style.setProperty('top', '0', 'important');
+      el.style.setProperty('width', '794px', 'important');
+      el.style.setProperty('max-width', '794px', 'important');
+      el.style.setProperty('opacity', '1', 'important');
+      el.style.setProperty('visibility', 'visible', 'important');
+      el.style.setProperty('z-index', '2147483630', 'important');
+      el.style.setProperty('pointer-events', 'none', 'important');
+      el.style.setProperty('background', '#ffffff', 'important');
+      el.style.setProperty('overflow', 'visible', 'important');
+      el.style.setProperty('box-sizing', 'border-box', 'important');
+
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await new Promise(r => setTimeout(r, 450));
+
+      canvas = await html2canvas(el, {
+        scale,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        foreignObjectRendering: false,
+        onclone(clonedDoc) {
+          const b = clonedDoc.body;
+          if (b) {
+            b.style.setProperty('background', '#ffffff', 'important');
+            b.style.setProperty('color', '#111111', 'important');
+          }
+        },
+      });
+    } catch (e) {
+      console.error(e);
+      alert('PDF çizilemedi: ' + (e && e.message ? e.message : e));
+      return;
+    } finally {
+      el.setAttribute('style', prevStyle);
+      if (veil.parentNode) veil.parentNode.removeChild(veil);
+    }
+
+    if (!canvas || canvas.width < 8 || canvas.height < 8) {
+      alert('PDF boş çıktı: içerik yakalanamadı. Tarayıcıyı güncelleyin veya farklı tarayıcı deneyin.');
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const innerW = pageW - 2 * marginMm;
+    const innerH = pageH - 2 * marginMm;
+    const imgFullH_mm = (canvas.height * innerW) / canvas.width;
+
+    let yPx = 0;
+    const quality = 0.92;
+    while (yPx < canvas.height) {
+      const slicePx = Math.min(
+        Math.max(1, Math.floor((innerH / imgFullH_mm) * canvas.height)),
+        canvas.height - yPx
+      );
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width;
+      slice.height = slicePx;
+      const ctx = slice.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, slice.width, slice.height);
+      ctx.drawImage(canvas, 0, yPx, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+      const sliceMmH = (slicePx / canvas.height) * imgFullH_mm;
+      const data = slice.toDataURL('image/jpeg', quality);
+      pdf.addImage(data, 'JPEG', marginMm, marginMm, innerW, sliceMmH);
+      yPx += slicePx;
+      if (yPx < canvas.height) pdf.addPage();
+    }
+
+    pdf.save(filename || 'liste.pdf');
+  }
+
+  /** Yeni sekme açmadan yazdır; kullanıcıya beyaz önizleme görünmez */
+  function yazdirHtmlGizli(docHtml) {
+    const html = String(docHtml).replace(/<script\b[\s\S]*?<\/script>/gi, '');
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('title', 'yazdir');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText =
+      'position:fixed!important;left:-10000px!important;top:0!important;width:794px!important;' +
+      'min-height:1200px!important;height:auto!important;max-height:none!important;opacity:0!important;' +
+      'border:0!important;margin:0!important;padding:0!important;pointer-events:none!important;' +
+      'z-index:-1!important;overflow:visible!important;';
+    document.body.appendChild(iframe);
+    const idoc = iframe.contentDocument || iframe.contentWindow.document;
+    idoc.open();
+    idoc.write(html);
+    idoc.close();
+    const w = iframe.contentWindow;
+    const kaldir = () => {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    };
+    setTimeout(() => {
+      try {
+        w.focus();
+        w.print();
+      } catch (e) {
+        console.error(e);
+      }
+      setTimeout(kaldir, 1500);
+    }, 450);
+  }
+
+  function pozGridHtmlForBaski(rawInner) {
+    return rawInner
+      .replaceAll('class="poz-kart"', 'class="kart"')
+      .replaceAll('class="poz-kart-header"', 'class="hdr"')
+      .replaceAll('class="poz-drawing"', 'class="draw"');
+  }
+  /** A4 başına 2×2 (4) dolap; çizimler sütun genişliğine göre büyür */
+  function pozBaskiStilBloklari() {
+    return `
+    @page { size: A4 portrait; margin: 8mm; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body.poz-baski { font-family:'Segoe UI',sans-serif; color:#111; padding:4px; background:#fff !important; }
+    .poz-print-page { break-inside: avoid; page-break-inside: avoid; }
+    .poz-print-page:not(:last-child) { page-break-after: always; break-after: page; }
+    h1 { text-align:center; letter-spacing:.1em; font-size:11pt; text-transform:uppercase; margin-bottom:3px; color:#111; }
+    .sub { text-align:center; color:#444; font-size:8pt; margin-bottom:8px; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 6px;
+      align-items: stretch;
+      min-height: 0;
+    }
+    .kart {
+      border: 1px solid #999;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff !important;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .hdr {
+      padding: 6px 8px;
+      flex: 0 0 auto;
+      background: #e8ecff !important;
+      font-weight: 800;
+      font-size: 8pt;
+      color: #111;
+    }
+    .draw {
+      flex: 1 1 auto;
+      min-height: 0;
+      padding: 6px 8px;
+      background: #fff !important;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .draw svg {
+      width: 100% !important;
+      height: auto !important;
+      max-height: none !important;
+      display: block;
+      margin: 0 auto;
+    }
+    .draw svg > rect:first-of-type { fill: #ffffff !important; }
+    /* Ekran + PDF yakalama: 2 satır eşit yükseklik; yazdırmada A4 ile uyumlu */
+    body.poz-baski .grid { height: 248mm; max-height: 248mm; }
+    @media print {
+      body.poz-baski { padding: 2mm; }
+    }
+  `;
+  }
+  function pozBaskiSayfalaraBol(rawInner) {
+    const inner = pozGridHtmlForBaski(rawInner);
+    const bloklar = inner.split(/(?=<div class="kart">)/).filter(s => s.trim());
+    const per = 4;
+    const sayfalar = [];
+    for (let i = 0; i < bloklar.length; i += per) {
+      sayfalar.push(bloklar.slice(i, i + per).join(''));
+    }
+    return sayfalar;
+  }
+  function pozBaskiSayfaGovdesi(icerik, tarih) {
+    const sayfalar = pozBaskiSayfalaraBol(icerik);
+    return sayfalar
+      .map(
+        (gridInner, idx) => `
+  <div class="poz-print-page">
+    <h1>Dolap Poz Görünümleri</h1>
+    <div class="sub">Tarih: ${tarih}${sayfalar.length > 1 ? ` · Sayfa ${idx + 1}/${sayfalar.length}` : ''}</div>
+    <div class="grid">${gridInner}</div>
+  </div>`
+      )
+      .join('');
+  }
+
+  // ── Yazdır ───────────────────────────────────────────────────
+  function kesimYazdir() {
+    const icerik = document.getElementById('kesimIcerik').innerHTML;
+    const tarih  = new Date().toLocaleDateString('tr-TR');
+
+    yazdirHtmlGizli(`<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Profil Kesim Listesi — Çoklu</title>
+  <style>
+    @page { size: A4; margin: 10mm; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',sans-serif; color:#111; background:#fff; padding:24px; }
+    h1 { text-align:center; letter-spacing:.2em; font-size:1.1rem; text-transform:uppercase; margin-bottom:4px; }
+    .sub { text-align:center; color:#222; font-size:.8rem; margin-bottom:22px; }
+    .kesim-divider { height:1px; background:#e0e0e0; margin:18px 0; }
+    .kesim-section-header { display:flex; justify-content:space-between; align-items:center;
+      padding:7px 12px; background:#f3f3f3; border-left:3px solid #666; margin-bottom:8px; }
+    .kesim-section-name { font-size:.8rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#000; }
+    .kesim-section-meta { font-size:.72rem; color:#222; }
+    table { width:100%; border-collapse:collapse; font-size:.8rem; margin-bottom:4px; color:#000; }
+    table.kesim-table th, table.kesim-table td { color:#000 !important; }
+    thead th { background:#f8f8f8; padding:6px 10px; text-align:left; border-bottom:1.5px solid #ccc;
+      font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:#000; font-weight:800; white-space:nowrap; }
+    thead th.c { text-align:center; }
+    tbody td { padding:7px 10px; border-bottom:1px solid #eee; color:#000; vertical-align:middle; }
+    tbody tr:last-child td { border-bottom:none; }
+    tfoot td { background:#f5f5f5; padding:7px 10px; font-size:.78rem; font-weight:700; color:#000; border-top:1.5px solid #ccc; }
+    .td-poz { text-align:center; color:#000; width:40px; font-size:.72rem; font-weight:700; }
+    .td-adet { text-align:center; font-weight:800; width:50px; color:#000; }
+    .td-olcu { text-align:center; font-family:'Courier New',monospace; font-weight:700; width:96px; color:#000; }
+    .td-olcu.bos { color:#000; }
+    .td-aci { text-align:center; font-weight:800; font-size:.74rem; width:76px; color:#000; }
+    .aci-45, .aci-90, .aci-duz { color:#000 !important; }
+    .td-aciklama { color:#000; }
+    .td-val { text-align:center; font-weight:800; color:#000; }
+    @media print { body { padding:12px; } }
+  </style>
+</head>
+<body>
+  <h1>Profil Kesim Listesi</h1>
+  <div class="sub">Birleşik liste &nbsp;|&nbsp; Tarih: ${tarih}</div>
+  ${icerik}
+</body>
+</html>`);
+  }
+
+  async function kesimPDF() {
+    const icerik = document.getElementById('kesimIcerik').innerHTML;
+    if (!icerik) return;
+    const tarih = new Date().toLocaleDateString('tr-TR');
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;left:-20000px;top:0;width:190mm;background:#fff;padding:16px;font-family:Segoe UI,sans-serif;color:#111;';
+    wrap.innerHTML = `
+      <style>
+        h1 { text-align:center; letter-spacing:.2em; font-size:1.1rem; text-transform:uppercase; margin-bottom:4px; color:#000; }
+        .sub { text-align:center; color:#222; font-size:.8rem; margin-bottom:18px; }
+        .kesim-divider { height:1px; background:#e0e0e0; margin:18px 0; }
+        .kesim-section-header { display:flex; justify-content:space-between; align-items:center;
+          padding:7px 12px; background:#f3f3f3; border-left:3px solid #666; margin-bottom:8px; }
+        .kesim-section-name { font-size:.8rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#000; }
+        .kesim-section-meta { font-size:.72rem; color:#222; }
+        table { width:100%; border-collapse:collapse; font-size:.8rem; margin-bottom:4px; color:#000; }
+        table.kesim-table th, table.kesim-table td { color:#000 !important; }
+        thead th { background:#f8f8f8; padding:6px 10px; text-align:left; border-bottom:1.5px solid #ccc;
+          font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:#000; font-weight:800; white-space:nowrap; }
+        thead th.c { text-align:center; }
+        tbody td { padding:7px 10px; border-bottom:1px solid #eee; color:#000; vertical-align:middle; }
+        tbody tr:last-child td { border-bottom:none; }
+        tfoot td { background:#f5f5f5; padding:7px 10px; font-size:.78rem; font-weight:700; color:#000; border-top:1.5px solid #ccc; }
+        .td-poz { text-align:center; color:#000; width:40px; font-size:.72rem; font-weight:700; }
+        .td-adet { text-align:center; font-weight:800; width:50px; color:#000; }
+        .td-olcu { text-align:center; font-family:'Courier New',monospace; font-weight:700; width:96px; color:#000; }
+        .td-olcu.bos { color:#000; }
+        .td-aci { text-align:center; font-weight:800; font-size:.74rem; width:76px; color:#000; }
+        .aci-45, .aci-90, .aci-duz { color:#000 !important; }
+        .td-aciklama { color:#000; }
+        .td-val { text-align:center; font-weight:800; color:#000; }
+      </style>
+      <h1>Profil Kesim Listesi</h1>
+      <div class="sub">Birleşik liste &nbsp;|&nbsp; Tarih: ${tarih}</div>
+      ${icerik}`;
+    document.body.appendChild(wrap);
+    try {
+      await pdfIndirFromElement(wrap, 'profil-kesim-listesi.pdf', { marginMm: 8 });
+    } finally {
+      document.body.removeChild(wrap);
+    }
+  }
+
+  function pozYazdir() {
+    const icerik = document.getElementById('pozGrid').innerHTML;
+    if (!icerik) return;
+    const tarih = new Date().toLocaleDateString('tr-TR');
+    yazdirHtmlGizli(`<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dolap Poz Görünümleri — A4</title>
+  <style>${pozBaskiStilBloklari()}</style>
+</head>
+<body class="poz-baski">
+  ${pozBaskiSayfaGovdesi(icerik, tarih)}
+</body>
+</html>`);
+  }
+
+  async function pozPDF() {
+    const icerik = document.getElementById('pozGrid').innerHTML;
+    if (!icerik) return;
+    const tarih = new Date().toLocaleDateString('tr-TR');
+    const wrap = document.createElement('div');
+    wrap.className = 'poz-baski';
+    wrap.style.cssText =
+      'position:fixed;left:-20000px;top:0;width:794px;background:#fff;padding:8px;font-family:Segoe UI,sans-serif;';
+    wrap.innerHTML = `<style>${pozBaskiStilBloklari()}</style>${pozBaskiSayfaGovdesi(icerik, tarih)}`;
+    document.body.appendChild(wrap);
+    try {
+      await pdfIndirFromElement(wrap, 'dolap-poz-gorunumleri.pdf', { marginMm: 6 });
+    } finally {
+      document.body.removeChild(wrap);
+    }
+  }
+
+  // ── Kesim Listesi Excel ───────────────────────────────────────
+  function kesimExcelIndir() {
+    const liste = getDolaplar()
+      .filter(d => d.W && d.H && d.W >= 30 && d.W <= 600 && d.H >= 30 && d.H <= 250)
+      .map(d => ({
+        ...d,
+        altUst: round(d.W + 1.6),
+        dikeyKasa: round(d.H + 1.6),
+        duzDikey: round(d.H - 4.9),
+        duzYatay: kanatYatayOlcusu(d.W, d.kanatN),
+      }))
+      .map(d => ({
+        ...d,
+        camEn: round(d.duzYatay - 3.2),
+        camBoy: round(d.duzDikey - 3.2),
+      }));
+    if (liste.length === 0) return;
+    const tarih     = new Date().toLocaleDateString('tr-TR');
+
+    const rows = [
+      ['PROFİL KESİM LİSTESİ'],
+      [`Dolap: ${liste.length} adet`, '', '', `Tarih: ${tarih}`],
+      [],
+    ];
+
+    liste.forEach(d => {
+      rows.push([`DOLAP ${d.id} — ${d.W}×${d.H} cm · ${d.kanatN} kanat`]);
+      const bolumler = _bolumlerForDolap(d);
+      bolumler.forEach(b => {
+        rows.push([b.baslik.toUpperCase()]);
+        rows.push(['Poz', 'Açıklama', 'Adet', 'Yatay (cm)', 'Dikey (cm)', 'K.Açısı']);
+        b.satirlar.forEach(s => rows.push([s.poz, s.ac, s.adet, s.yatay ?? '', s.dikey ?? '', s.aci]));
+        const tot = b.satirlar.reduce((s, r) => s + r.adet, 0);
+        const totLen = b.satirlar.reduce((s, r) => s + r.adet * ((+r.yatay) || (+r.dikey) || 0), 0);
+        rows.push(['', 'TOPLAM', tot, '', `${round(totLen)} cm`, '']);
+        rows.push([]);
+      });
+      rows.push([]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 6 }, { wch: 42 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 12 }];
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Kesim Listesi');
+    XLSX.writeFile(wb, `kesim-listesi-coklu-${liste.length}dolap.xlsx`);
+
+    showToast('📥 Kesim listesi indirildi!');
+  }
+</script>
+</body>
+</html>
