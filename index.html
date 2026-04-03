@@ -150,6 +150,14 @@
       margin-bottom: 8px;
     }
 
+    label.maliyet-baslik {
+      font-size: 1.12rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
     .input-wrapper {
       position: relative;
     }
@@ -1195,7 +1203,7 @@
 
         <!-- Maliyet -->
         <div class="input-group">
-          <label>Maliyet</label>
+          <label class="maliyet-baslik">Maliyet</label>
           <div class="slider-row" style="gap:10px;">
             <div style="flex:1;min-width:0;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
@@ -1346,18 +1354,69 @@
     err.textContent = '';
     document.getElementById('loginOverlay').style.display = 'none';
     document.getElementById('appWrapper').style.display = 'block';
-    try { localStorage.setItem('cc_loggedIn', '1'); } catch {}
+    try {
+      localStorage.setItem('cc_loggedIn', '1');
+      localStorage.setItem('cc_loggedUser', u);
+    } catch {}
+    maliyetYukle();
     showToast('✅ Giriş başarılı');
   }
 
   function loginCikis() {
-    try { localStorage.removeItem('cc_loggedIn'); } catch {}
+    try {
+      localStorage.removeItem('cc_loggedIn');
+      localStorage.removeItem('cc_loggedUser');
+    } catch {}
     document.getElementById('appWrapper').style.display = 'none';
     document.getElementById('loginOverlay').style.display = 'flex';
     document.getElementById('loginUser').value = '';
     document.getElementById('loginPass').value = '';
     document.getElementById('loginError').textContent = '';
     document.getElementById('loginUser').focus();
+  }
+
+  /** Eski tek anahtar (cc_cost_costKasa …) — geriye dönük */
+  function eskiMaliyetAnahtari(fieldId) {
+    return 'cc_cost_' + fieldId;
+  }
+
+  /** Giriş yapan kullanıcıya özel anahtar; kullanıcı yoksa eski formata düşer */
+  function maliyetDepoAnahtar(fieldId) {
+    try {
+      const raw = (localStorage.getItem('cc_loggedUser') || '').trim();
+      if (raw) {
+        const safe = raw.replace(/[^a-zA-Z0-9_-]/g, '_') || 'kullanici';
+        return `cc_maliyet_${safe}_${fieldId}`;
+      }
+    } catch {}
+    return eskiMaliyetAnahtari(fieldId);
+  }
+
+  function maliyetYukle() {
+    try {
+      if (localStorage.getItem('cc_loggedIn') !== '1') return;
+    } catch {
+      return;
+    }
+    const ids = ['costKasa', 'costKanat', 'costTeker', 'costYay'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      let v = null;
+      try {
+        const raw = (localStorage.getItem('cc_loggedUser') || '').trim();
+        if (raw) {
+          const safe = raw.replace(/[^a-zA-Z0-9_-]/g, '_') || 'kullanici';
+          v = localStorage.getItem(`cc_maliyet_${safe}_${id}`);
+        }
+      } catch {}
+      if (v == null) {
+        try {
+          v = localStorage.getItem(eskiMaliyetAnahtari(id));
+        } catch {}
+      }
+      if (v !== null) el.value = v;
+    });
   }
 
   function _loginInit() {
@@ -1370,6 +1429,7 @@
     if (logged) {
       overlay.style.display = 'none';
       app.style.display = 'block';
+      maliyetYukle();
     } else {
       overlay.style.display = 'flex';
       app.style.display = 'none';
@@ -2512,12 +2572,14 @@
     });
   }
 
-  // Maliyet değişince fiyat listesini güncelle
+  // Maliyet değişince kaydet (kullanıcıya göre) + fiyat listesini güncelle
   ['costKasa', 'costKanat', 'costTeker', 'costYay'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('input', () => {
-      try { localStorage.setItem('cc_cost_'+id, el.value || ''); } catch {}
+      try {
+        localStorage.setItem(maliyetDepoAnahtar(id), el.value || '');
+      } catch {}
       const any = getDolaplar().some(x => x.W && x.H);
       if (any) hesapla();
     });
@@ -2533,16 +2595,7 @@
     const h1 = document.getElementById('heightInput_1');
     if (w1) w1.value = 111;
     if (h1) h1.value = 68.5;
-    try {
-      const ck = localStorage.getItem('cc_cost_costKasa');
-      const cn = localStorage.getItem('cc_cost_costKanat');
-      const ct = localStorage.getItem('cc_cost_costTeker');
-      const cy = localStorage.getItem('cc_cost_costYay');
-      if (ck !== null) document.getElementById('costKasa').value = ck;
-      if (cn !== null) document.getElementById('costKanat').value = cn;
-      if (ct !== null) document.getElementById('costTeker').value = ct;
-      if (cy !== null) document.getElementById('costYay').value = cy;
-    } catch {}
+    maliyetYukle();
   });
 
   // ── Poz Görünümleri ──────────────────────────────────────────
