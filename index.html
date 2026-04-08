@@ -1531,8 +1531,8 @@
 
     dolaplar.forEach(d => {
       const errEl = document.getElementById(`dolapErr_${d.id}`);
-      const wOk = d.W && d.W >= 30 && d.W <= 600;
-      const hOk = d.H && d.H >= 30 && d.H <= 250;
+      const wOk = Number.isFinite(d.W) && d.W >= 0 && d.W <= 600;
+      const hOk = Number.isFinite(d.H) && d.H >= 0 && d.H <= 250;
       const ok = !!(wOk && hOk);
       if (errEl) errEl.style.display = ok ? 'none' : 'block';
       if (ok) anyValid = true;
@@ -1541,7 +1541,7 @@
     if (!anyValid) return;
 
     const hesaplanan = dolaplar
-      .filter(d => d.W && d.H && d.W >= 30 && d.W <= 600 && d.H >= 30 && d.H <= 250)
+      .filter(d => Number.isFinite(d.W) && Number.isFinite(d.H) && d.W >= 0 && d.W <= 600 && d.H >= 0 && d.H <= 250)
       .map(d => {
         const altUst    = round(d.W + 1.6);
         const dikeyKasa = round(d.H + 1.6);
@@ -1935,7 +1935,7 @@
   }
 
   function fiyatYazdir() {
-    const liste = getDolaplar().filter(d => d.W && d.H);
+    const liste = getDolaplar().filter(d => Number.isFinite(d.W) && Number.isFinite(d.H));
     if (liste.length === 0) return;
     const icerik = fiyatCardIcerikYazdirPdfIcin();
     yazdirHtmlGizli(`<!DOCTYPE html>
@@ -1956,7 +1956,7 @@
   }
 
   async function fiyatPDF() {
-    const liste = getDolaplar().filter(d => d.W && d.H);
+    const liste = getDolaplar().filter(d => Number.isFinite(d.W) && Number.isFinite(d.H));
     if (liste.length === 0) return;
     const icerikTemiz = fiyatCardIcerikYazdirPdfIcin();
     const wrap = document.createElement('div');
@@ -2538,12 +2538,12 @@
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div class="input-wrapper">
-              <input type="number" id="widthInput_${i}" placeholder="En (cm)" min="30" max="600" step="0.1"
+              <input type="number" id="widthInput_${i}" placeholder="En (cm)" min="0" max="600" step="0.1"
                      style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:1.05rem;font-weight:650;padding:11px 14px;outline:none;" />
               <span class="unit-badge">cm</span>
             </div>
             <div class="input-wrapper">
-              <input type="number" id="heightInput_${i}" placeholder="Boy (cm)" min="30" max="250" step="0.1"
+              <input type="number" id="heightInput_${i}" placeholder="Boy (cm)" min="0" max="250" step="0.1"
                      style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:1.05rem;font-weight:650;padding:11px 14px;outline:none;" />
               <span class="unit-badge">cm</span>
             </div>
@@ -2574,11 +2574,11 @@
       if (hEl && v.h !== undefined) hEl.value = v.h;
       if (dEl && v.d !== undefined) dEl.value = v.d;
       [wEl, hEl, dEl].forEach(el => el && el.addEventListener('input', () => {
-        const any = getDolaplar().some(x => x.W && x.H);
+        const any = getDolaplar().some(x => Number.isFinite(x.W) && Number.isFinite(x.H));
         if (any) hesapla();
       }));
       if (dEl) dEl.addEventListener('change', () => {
-        const any = getDolaplar().some(x => x.W && x.H);
+        const any = getDolaplar().some(x => Number.isFinite(x.W) && Number.isFinite(x.H));
         if (any) hesapla();
       });
     }
@@ -2622,7 +2622,7 @@
   if (_cabSel) {
     _cabSel.addEventListener('change', () => {
       renderDolapInputs(_cabSel.value);
-      const any = getDolaplar().some(x => x.W && x.H);
+      const any = getDolaplar().some(x => Number.isFinite(x.W) && Number.isFinite(x.H));
       if (any) hesapla();
     });
   }
@@ -2635,7 +2635,7 @@
       try {
         localStorage.setItem(maliyetDepoAnahtar(id), el.value || '');
       } catch {}
-      const any = getDolaplar().some(x => x.W && x.H);
+      const any = getDolaplar().some(x => Number.isFinite(x.W) && Number.isFinite(x.H));
       if (any) hesapla();
     });
   });
@@ -3419,7 +3419,7 @@
   // ── Kesim Listesi Excel ───────────────────────────────────────
   function kesimExcelIndir() {
     const liste = getDolaplar()
-      .filter(d => d.W && d.H && d.W >= 30 && d.W <= 600 && d.H >= 30 && d.H <= 250)
+      .filter(d => Number.isFinite(d.W) && Number.isFinite(d.H) && d.W >= 0 && d.W <= 600 && d.H >= 0 && d.H <= 250)
       .map(d => ({
         ...d,
         altUst: round(d.W + 1.6),
